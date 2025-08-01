@@ -2,6 +2,15 @@
 
 🚗 一个专为中国用户设计的加拿大驾驶执照考试应用，采用 Monorepo 架构实现前后端类型共享。
 
+## ✨ 项目亮点
+
+- 🚀 **最新技术栈**: Next.js 15 + React 19 + TypeScript
+- 🎨 **现代UI设计**: shadcn/ui + Tailwind CSS
+- 📱 **跨平台支持**: React Native + Expo
+- 🔧 **类型安全**: 完整的 TypeScript 类型共享
+- ⚡ **高性能构建**: Bun + Turborepo
+- 🗄️ **现代数据库**: Drizzle ORM + Neon PostgreSQL
+
 ## 📋 目录
 
 - [项目结构](#项目结构)
@@ -52,7 +61,8 @@ CDT/
 - **NativeWind** - Tailwind CSS for React Native
 
 ### 后端 (Next.js) ✅
-- **Next.js 14** - 全栈框架 (App Router)
+- **Next.js 15** - 全栈框架 (App Router)
+- **React 19** - 最新的 React 版本
 - **TypeScript** - 类型安全
 - **shadcn/ui** - 现代 UI 组件库
 - **Tailwind CSS** - 样式框架
@@ -69,7 +79,7 @@ CDT/
 
 ### 环境要求
 
-- Node.js 18+ 或 Bun 1.0+
+- Node.js 20+ 或 Bun 1.0+ (推荐使用最新版本)
 - Expo CLI
 - iOS 模拟器 / Android 模拟器
 
@@ -77,7 +87,7 @@ CDT/
 
 ```bash
 # 克隆项目
-git clone <your-repo-url>
+git clone <https://github.com/EATMove/CDT>
 cd CDT
 
 # 安装所有依赖

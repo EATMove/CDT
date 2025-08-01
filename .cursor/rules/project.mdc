@@ -1,0 +1,132 @@
+---
+alwaysApply: true
+---
+You are an expert React Native developer using TypeScript and Expo. Please help me build a bilingual (Chinese and English) mobile app called “加拿大驾考 App”, designed for Chinese users preparing for the Canadian driver’s license exam. The app is built with Expo and should follow a clean, mobile-first UI for both iOS and Android.
+
+Use modern React (function components, hooks), React Navigation, Zustand or Context for state management, and AsyncStorage for persistent data.
+
+Create the following screens and logic based on the product requirements:
+
+---
+
+📱 Screen 1: Province Selection  
+- Dropdown or list to select province: AB (Alberta), BC (British Columbia), ON (Ontario)  
+- "Continue" button saves selection and navigates to Login screen  
+- Save selected province to local storage or Zustand
+
+---
+
+🔐 Screen 2: Login Home  
+- Default: WeChat Login button (simulate for now)  
+- Checkbox to accept Privacy Policy & Terms  
+- Option buttons: "Use Email Login", "Use Phone Login"
+
+---
+
+✉️ Screen 3: Email Login  
+- Fields: Email + Password  
+- Links: "Forgot Password", "Register", "Use Phone Login"  
+- Validate email format, password non-empty
+
+---
+
+📝 Screen 4: Email Register  
+- Fields: Nickname, Email, Password, Verification Code  
+- Validation:  
+  - Nickname: 2–20 characters (Chinese/English only)  
+  - Password: 8–20 chars, include 2 of [letters, numbers, symbols]  
+  - Verification Code: 4–6 digits (simulated)
+
+---
+
+📚 Screen 9: Driver’s Handbook  
+- List of chapters  
+- Clickable to enter learning screen  
+- Lock from Chapter 2 if not a member  
+- Show “已学习” if user finished a chapter
+
+---
+
+📖 Screen 10: Handbook Reading  
+- Show chapter content, scrollable  
+- Show reading progress (e.g. "1/100")  
+- Show “Free Trial” notice if not a member and past Chapter 1
+
+---
+
+🧪 Screen 12: Chapter Quiz Entry  
+- Chapter list with "Start Practice" buttons  
+- Show how many times practiced  
+- Lock from Chapter 2 for non-members  
+
+---
+
+🧠 Screen 13: Quiz Page  
+- Show one question at a time  
+- Multiple-choice with Chinese/English/Hybrid toggle  
+- Show correct/incorrect result, green check or red cross  
+- “Next” button, and "Feedback" button  
+- Progress indicator (e.g. 3/13)
+
+---
+
+📊 Screen 16: Quiz Summary  
+- Time taken, score (out of 100), correct rate  
+- UI: inner circle = accuracy %, outer = clock dial  
+- Buttons: "Redo Chapter", "Next Chapter"
+
+---
+
+🎯 Screen 19: Simulation List  
+- List of test sets  
+- "Start Simulation" button  
+- Show how many times completed  
+- Lock from Chapter 2 for non-members
+
+---
+
+📋 Screen 20: Simulation Quiz  
+- 30 questions, random from 5 sets (6 each)  
+- Same logic as normal quiz  
+- Show progress and feedback
+
+---
+
+✅ Screen 23: Simulation Summary  
+- Pass if ≥25/30  
+- Show time, correct answers, and pass/fail  
+- "Redo", "Next Chapter" buttons
+
+---
+
+❌ Screen 26: Wrong Question Book  
+- List of wrong questions  
+- Retry each question (same UI as quiz)  
+- Option: "Remove from Wrong Book"
+
+---
+
+👤 Screen 30: User Profile  
+- Show user status (Free / Member)  
+- Input invite code → 3-day trial  
+- Button to purchase membership  
+- Help center → go to Feedback screen  
+- Logout
+
+---
+
+🔧 Design & Architecture  
+- Use Tailwind-compatible styling (e.g., `nativewind`) or `StyleSheet`  
+- Build reusable components: `InputField`, `LanguageToggle`, `QuestionCard`, `SectionCard`, `ProgressCircle`  
+- Use `Zustand` or `Context` for:  
+  - Auth info (WeChat/email/phone)  
+  - User type (member/free)  
+  - Selected province  
+  - Quiz progress and retry logic  
+- Use `AsyncStorage` to persist user type, province, progress, and cached questions  
+- Bilingual support: build a simple `i18n` utility with language toggle per screen  
+- Use mock API / static data for questions and handbook for now
+
+---
+
+Please scaffold the file and folder structure for an Expo-based React Native project using this screen layout. Then generate each screen using React Native (with TypeScript). Prioritize usability and simplicity for mobile Chinese-speaking users. Avoid class components. You may simulate login and membership with local state for now.

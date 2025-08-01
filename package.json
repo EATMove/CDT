@@ -1,0 +1,27 @@
+{
+  "name": "canadian-driving-test",
+  "version": "1.0.0",
+  "description": "加拿大驾考App - 前后端monorepo项目",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "type-check": "turbo run type-check",
+    "mobile": "cd apps/mobile && bun run dev",
+    "admin": "cd apps/admin && bun run dev",
+    "db:generate": "cd packages/database && bun run generate",
+    "db:migrate": "cd packages/database && bun run migrate",
+    "db:studio": "cd packages/database && bun run studio"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "turbo": "^1.11.0",
+    "typescript": "^5.0.0"
+  },
+  "packageManager": "bun@1.0.0"
+} 

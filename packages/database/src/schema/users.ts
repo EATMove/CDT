@@ -4,7 +4,7 @@ import { createInsertSchema, createSelectSchema } from 'drizzle-zod';
 // 枚举定义
 export const provinceEnum = pgEnum('province', ['AB', 'BC', 'ON']);
 export const userTypeEnum = pgEnum('user_type', ['FREE', 'MEMBER', 'TRIAL']);
-export const loginMethodEnum = pgEnum('login_method', ['WECHAT', 'EMAIL', 'PHONE']);
+export const loginMethodEnum = pgEnum('login_method', ['EMAIL', 'PHONE', 'GOOGLE']);
 
 // 用户表
 export const users = pgTable('users', {
@@ -12,8 +12,9 @@ export const users = pgTable('users', {
   nickname: varchar('nickname', { length: 50 }).notNull(),
   email: varchar('email', { length: 255 }).unique(),
   phone: varchar('phone', { length: 20 }).unique(),
-  wechatId: varchar('wechat_id', { length: 100 }).unique(),
-  passwordHash: text('password_hash'),
+  googleId: varchar('google_id', { length: 100 }).unique(),
+  passwordHash: text('password_hash'), // 邮箱/手机登录需要密码，Google登录不需要
+  primaryLoginMethod: loginMethodEnum('primary_login_method').notNull(), // 用户主要使用的登录方式
   province: provinceEnum('province').notNull(),
   userType: userTypeEnum('user_type').notNull().default('FREE'),
   trialEndDate: timestamp('trial_end_date'),
@@ -21,8 +22,10 @@ export const users = pgTable('users', {
   inviteCode: varchar('invite_code', { length: 10 }).unique(),
   emailVerified: boolean('email_verified').default(false),
   phoneVerified: boolean('phone_verified').default(false),
+  googleVerified: boolean('google_verified').default(false), // Google账号验证状态
   isActive: boolean('is_active').default(true),
   lastLoginAt: timestamp('last_login_at'),
+  lastLoginMethod: loginMethodEnum('last_login_method'), // 最后一次使用的登录方式
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
@@ -33,7 +36,7 @@ export const verificationCodes = pgTable('verification_codes', {
   email: varchar('email', { length: 255 }),
   phone: varchar('phone', { length: 20 }),
   code: varchar('code', { length: 6 }).notNull(),
-  type: varchar('type', { length: 20 }).notNull(), // 'register', 'reset_password', 'login'
+  type: varchar('type', { length: 20 }).notNull(), // 'register', 'reset_password', 'login', 'phone_verification', 'email_verification'
   expiresAt: timestamp('expires_at').notNull(),
   usedAt: timestamp('used_at'),
   createdAt: timestamp('created_at').defaultNow().notNull(),

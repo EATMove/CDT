@@ -8,7 +8,7 @@
 - 🎨 **现代UI设计**: shadcn/ui + Tailwind CSS
 - 📱 **跨平台支持**: React Native + Expo
 - 🔧 **类型安全**: 完整的 TypeScript 类型共享
-- ⚡ **高性能构建**: Bun + Turborepo
+- ⚡ **高性能构建**: pnpm + Turborepo
 - 🗄️ **现代数据库**: Drizzle ORM + Neon PostgreSQL
 
 ## 📋 目录
@@ -46,7 +46,7 @@ CDT/
 │       ├── src/schema/            # Drizzle ORM Schema
 │       ├── src/migrations/        # 数据库迁移文件
 │       └── src/seed/              # 种子数据
-├── package.json                   # 根 package.json (bun workspaces)
+├── package.json                   # 根 package.json (pnpm workspaces)
 ├── turbo.json                     # Turborepo 配置
 └── README.md                      # 项目文档
 ```
@@ -71,7 +71,7 @@ CDT/
 - **NextAuth.js** - 认证解决方案
 
 ### 工具链
-- **Bun** - 包管理器和运行时
+- **pnpm** - 包管理器和依赖管理
 - **Turborepo** - 构建系统优化
 - **TypeScript Project References** - 类型共享
 
@@ -79,7 +79,7 @@ CDT/
 
 ### 环境要求
 
-- Node.js 20+ 或 Bun 1.0+ (推荐使用最新版本)
+- Node.js 20+ 和 pnpm 9.0+ (推荐使用最新版本)
 - Expo CLI
 - iOS 模拟器 / Android 模拟器
 
@@ -91,22 +91,22 @@ git clone <https://github.com/EATMove/CDT>
 cd CDT
 
 # 安装所有依赖
-bun install
+pnpm install
 
 # 构建共享包
-bun run build
+pnpm run build
 ```
 
 ### 启动开发服务器
 
 ```bash
 # 启动移动端应用
-bun mobile
+pnpm mobile
 # 或
-bun run mobile
+pnpm run mobile
 
 # 启动管理后台 ✅
-bun admin
+pnpm admin
 # 默认运行在 http://localhost:3000
 ```
 
@@ -119,19 +119,19 @@ bun admin
 cd apps/mobile
 
 # 启动开发服务器
-bun run dev
+pnpm run dev
 
 # 在 iOS 模拟器中运行
-bun run ios
+pnpm run ios
 
 # 在 Android 模拟器中运行
-bun run android
+pnpm run android
 
 # Web 开发
-bun run web
+pnpm run web
 
 # 类型检查
-bun run type-check
+pnpm run type-check
 ```
 
 ### 管理后台开发
@@ -141,16 +141,16 @@ bun run type-check
 cd apps/admin
 
 # 启动开发服务器
-bun run dev
+pnpm run dev
 
 # 生产构建
-bun run build
+pnpm run build
 
 # 启动生产服务器
-bun run start
+pnpm run start
 
 # 类型检查
-bun run type-check
+pnpm run type-check
 ```
 
 #### 管理后台功能
@@ -204,22 +204,22 @@ const useUserStore = create<UserState>((set) => ({
 
 ## 📦 包管理
 
-### Bun Workspace 命令
+### pnpm Workspace 命令
 
 ```bash
 # 在根目录安装依赖到所有包
-bun install
+pnpm install
 
 # 为特定包安装依赖
-bun install --filter mobile <package-name>
-bun install --filter shared <package-name>
+pnpm install --filter mobile <package-name>
+pnpm install --filter shared <package-name>
 
 # 运行特定包的脚本
-bun run --filter mobile dev
-bun run --filter shared build
+pnpm run --filter mobile dev
+pnpm run --filter shared build
 
 # 查看所有包
-bun workspaces list
+pnpm workspaces list
 ```
 
 ### 添加新依赖
@@ -227,14 +227,14 @@ bun workspaces list
 ```bash
 # 添加到移动端应用
 cd apps/mobile
-bun add <package-name>
+pnpm add <package-name>
 
 # 添加到共享包
 cd packages/shared
-bun add <package-name>
+pnpm add <package-name>
 
 # 添加开发依赖
-bun add -D <package-name>
+pnpm add -D <package-name>
 ```
 
 ### 包间依赖
@@ -269,25 +269,25 @@ bun add -D <package-name>
 
 ```bash
 # 生成迁移文件
-bun db:generate
+pnpm db:generate
 
 # 执行迁移
-bun db:migrate
+pnpm db:migrate
 
 # 启动数据库管理界面
-bun db:studio
+pnpm db:studio
 
 # 在 database 包目录中的命令
 cd packages/database
 
 # 生成 schema
-bun run generate
+pnpm run generate
 
 # 执行迁移
-bun run migrate
+pnpm run migrate
 
 # 播种数据
-bun run seed
+pnpm run seed
 ```
 
 ### 添加新表
@@ -324,15 +324,15 @@ cd packages/database/src/schema
 # 编辑 schema 文件
 
 # 4. 生成数据库迁移
-bun db:generate
+pnpm db:generate
 
 # 5. 在移动端实现功能
 cd apps/mobile
 # 开发新功能
 
 # 6. 测试所有包
-bun run build
-bun run type-check
+pnpm run build
+pnpm run type-check
 
 # 7. 提交代码
 git add .
@@ -346,11 +346,11 @@ git commit -m "feat: add new feature"
 ```bash
 # 重新构建 shared 包
 cd packages/shared
-bun run build
+pnpm run build
 
 # 重新构建依赖 shared 的包
 cd ../../
-bun run build
+pnpm run build
 ```
 
 ## 🚀 部署说明
@@ -361,7 +361,7 @@ bun run build
 cd apps/mobile
 
 # 构建生产版本
-bun run build:production
+pnpm run build:production
 
 # 发布到 Expo
 npx expo publish
@@ -377,7 +377,7 @@ npx expo build:android
 cd apps/admin
 
 # 构建
-bun run build
+pnpm run build
 
 # 部署到 Vercel
 npx vercel --prod
@@ -389,24 +389,24 @@ npx vercel --prod
 
 ```bash
 # 构建所有包
-bun run build
+pnpm run build
 
 # 类型检查所有包
-bun run type-check
+pnpm run type-check
 
 # 代码检查
-bun run lint
+pnpm run lint
 
 # 启动移动端
-bun mobile
+pnpm mobile
 
 # 启动管理后台
-bun admin
+pnpm admin
 
 # 数据库操作
-bun db:generate    # 生成迁移
-bun db:migrate     # 执行迁移
-bun db:studio      # 数据库管理界面
+pnpm db:generate    # 生成迁移
+pnpm db:migrate     # 执行迁移
+pnpm db:studio      # 数据库管理界面
 ```
 
 ### 包特定脚本
@@ -414,32 +414,40 @@ bun db:studio      # 数据库管理界面
 ```bash
 # 移动端
 cd apps/mobile
-bun run dev        # 开发服务器
-bun run ios        # iOS 模拟器
-bun run android    # Android 模拟器
-bun run type-check # 类型检查
+pnpm run dev        # 开发服务器
+pnpm run ios        # iOS 模拟器
+pnpm run android    # Android 模拟器
+pnpm run type-check # 类型检查
 
 # 共享包
 cd packages/shared
-bun run build      # 构建
-bun run dev        # 监听模式构建
+pnpm run build      # 构建
+pnpm run dev        # 监听模式构建
 
 # 数据库包
 cd packages/database
-bun run generate   # 生成迁移
-bun run migrate    # 执行迁移
-bun run studio     # 数据库管理
+pnpm run generate   # 生成迁移
+pnpm run migrate    # 执行迁移
+pnpm run studio     # 数据库管理
 ```
 
 ## ❓ 常见问题
 
-### Q: 为什么选择 Bun 而不是 npm/yarn/pnpm？
+### Q: 为什么选择 pnpm 而不是 npm/yarn/bun？
 
-A: Bun 提供了更快的安装速度和更好的 monorepo 支持，特别适合 TypeScript 项目。
+A: pnpm 提供了更好的依赖管理和版本隔离，特别适合处理不同应用使用不同版本依赖的场景（如 Tailwind CSS v3 vs v4）。
+
+### Q: 如何处理不同应用使用不同版本的依赖？
+
+A: 本项目使用 pnpm 的版本隔离功能。例如：
+- **Mobile 应用**：使用 Tailwind CSS v3.4.17（NativeWind 要求）
+- **Admin 应用**：使用 Tailwind CSS v4.1.11（最新版本）
+
+每个应用都有独立的 `node_modules`，确保版本兼容性。
 
 ### Q: 如何添加新的共享类型？
 
-A: 在 `packages/shared/src/types/` 中创建或修改类型文件，然后运行 `bun run build` 重新构建。
+A: 在 `packages/shared/src/types/` 中创建或修改类型文件，然后运行 `pnpm run build` 重新构建。
 
 ### Q: 数据库迁移失败怎么办？
 
@@ -450,7 +458,7 @@ A: 检查数据库连接字符串，确保 Neon 数据库正常运行，然后�
 A: 确保 shared 包已构建：
 ```bash
 cd packages/shared
-bun run build
+pnpm run build
 ```
 
 ### Q: 如何重置开发环境？
@@ -460,14 +468,14 @@ A:
 # 清理所有 node_modules
 find . -name "node_modules" -type d -exec rm -rf {} +
 
-# 删除 bun.lock
-rm bun.lock
+# 删除 pnpm-lock.yaml
+rm pnpm-lock.yaml
 
 # 重新安装
-bun install
+pnpm install
 
 # 重新构建
-bun run build
+pnpm run build
 ```
 
 ### Q: TypeScript 类型错误？
@@ -475,10 +483,10 @@ bun run build
 A: 
 ```bash
 # 重新构建所有包
-bun run build
+pnpm run build
 
 # 检查类型
-bun run type-check
+pnpm run type-check
 
 # 重启 TypeScript 服务器 (在 VS Code 中)
 # Cmd+Shift+P -> "TypeScript: Restart TS Server"
@@ -489,7 +497,7 @@ bun run type-check
 - [Expo 文档](https://docs.expo.dev/)
 - [Next.js 文档](https://nextjs.org/docs)
 - [Drizzle ORM 文档](https://orm.drizzle.team/)
-- [Bun 文档](https://bun.sh/docs)
+- [pnpm 文档](https://pnpm.io/)
 - [Turborepo 文档](https://turbo.build/)
 - [TypeScript 文档](https://www.typescriptlang.org/)
 

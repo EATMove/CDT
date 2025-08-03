@@ -12,16 +12,16 @@
     "build": "turbo run build",
     "lint": "turbo run lint",
     "type-check": "turbo run type-check",
-    "mobile": "cd apps/mobile && bun run dev",
-    "admin": "cd apps/admin && bun run dev",
-    "db:generate": "cd packages/database && bun run generate",
-    "db:migrate": "cd packages/database && bun run migrate",
-    "db:studio": "cd packages/database && bun run studio"
+    "mobile": "cd apps/mobile && pnpm run dev",
+    "admin": "cd apps/admin && pnpm run dev",
+    "db:generate": "cd packages/database && pnpm run generate",
+    "db:migrate": "cd packages/database && pnpm run migrate",
+    "db:studio": "cd packages/database && pnpm run studio"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
     "turbo": "^1.11.0",
     "typescript": "^5.0.0"
   },
-  "packageManager": "bun@1.0.0"
+  "packageManager": "pnpm@9.0.0"
 } 

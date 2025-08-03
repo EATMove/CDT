@@ -126,8 +126,9 @@ export default function ContentEditPage() {
     if (!file) return;
 
     // 验证文件类型
-    if (!file.type.startsWith('image/')) {
-      toast.error('请选择图片文件');
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
+    if (!allowedTypes.includes(file.type)) {
+      toast.error('不支持的文件格式，请上传 JPG、PNG、WebP 或 GIF 图片');
       return;
     }
 
@@ -139,20 +140,23 @@ export default function ContentEditPage() {
 
     setUploading(true);
     try {
-      // 模拟上传API调用
+      // 创建FormData
       const uploadFormData = new FormData();
       uploadFormData.append('file', file);
+      uploadFormData.append('alt', file.name);
       
-      // 模拟上传结果
-      const uploadResult: ImageUploadResult = {
-        id: Date.now().toString(),
-        filename: file.name,
-        url: URL.createObjectURL(file), // 临时URL，实际应该是服务器返回的URL
-        width: 800,
-        height: 600,
-        size: file.size,
-        mimeType: file.type,
-      };
+      // 调用上传API
+      const response = await fetch('/api/images/upload', {
+        method: 'POST',
+        body: uploadFormData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || '上传失败');
+      }
+
+      const uploadResult = await response.json();
       
       // 在编辑器中插入图片HTML
       if (editorRef.current) {
@@ -174,7 +178,7 @@ export default function ContentEditPage() {
       
     } catch (error) {
       console.error('图片上传失败:', error);
-      toast.error('图片上传失败，请重试');
+      toast.error(error instanceof Error ? error.message : '图片上传失败，请重试');
     } finally {
       setUploading(false);
       // 清空文件选择
@@ -218,12 +222,29 @@ export default function ContentEditPage() {
 
     setSaving(true);
     try {
-      // 这里应该调用实际的保存API
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      toast.success('保存成功！');
+      // 调用保存API
+      const response = await fetch('/api/content/save', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || '保存失败');
+      }
+
+      const result = await response.json();
+      toast.success(`保存成功！内容ID: ${result.id}`);
+      
+      // 可以在这里更新URL或重定向
+      console.log('保存成功，内容ID:', result.id);
+      
     } catch (error) {
       console.error('保存失败:', error);
-      toast.error('保存失败，请重试');
+      toast.error(error instanceof Error ? error.message : '保存失败，请重试');
     } finally {
       setSaving(false);
     }

@@ -1,8 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { nanoid } from 'nanoid';
-
-// 暂时使用内存存储，后续连接数据库
-const contentStorage = new Map();
+import { NextRequest } from 'next/server';
+import { getDb } from '@/lib/database';
+import { handbookSections, handbookChapters } from 'database';
+import { eq } from 'drizzle-orm';
+import { createSuccessResponse, createErrorResponse, withErrorHandling, validateRequiredFields, generateId } from '@/lib/utils';
+import { ApiErrorCode } from 'shared';
 
 interface ContentData {
   chapterId: string;
@@ -13,79 +14,192 @@ interface ContentData {
   contentEn?: string;
   isPublished: boolean;
   paymentType: 'FREE' | 'MEMBER_ONLY' | 'TRIAL_INCLUDED' | 'PREMIUM';
+  order?: number;
 }
 
-export async function POST(request: NextRequest) {
-  try {
-    const data: ContentData = await request.json();
+export const POST = withErrorHandling(async (request: NextRequest) => {
+  const data: ContentData = await request.json();
 
-    // 验证必填字段
-    if (!data.title || !data.content || !data.chapterId) {
-      return NextResponse.json(
-        { error: '请填写标题、内容和章节ID' },
-        { status: 400 }
-      );
-    }
+  // 验证必填字段
+  validateRequiredFields(data, ['title', 'content', 'chapterId']);
 
-    // 验证HTML内容（基本检查）
-    if (data.content.length < 10) {
-      return NextResponse.json(
-        { error: '内容太短，请输入更多内容' },
-        { status: 400 }
-      );
-    }
-
-    // 生成内容ID
-    const contentId = nanoid();
-    
-    // 创建内容记录
-    const contentRecord = {
-      id: contentId,
-      ...data,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      createdBy: 'admin', // TODO: 从认证系统获取用户ID
-    };
-
-    // 保存到内存（暂时）
-    contentStorage.set(contentId, contentRecord);
-
-    console.log('内容已保存:', {
-      id: contentId,
-      title: data.title,
-      chapterId: data.chapterId,
-      isPublished: data.isPublished,
-    });
-
-    return NextResponse.json({
-      success: true,
-      id: contentId,
-      message: '内容保存成功',
-    });
-
-  } catch (error) {
-    console.error('内容保存失败:', error);
-    return NextResponse.json(
-      { error: '内容保存失败，请重试' },
-      { status: 500 }
+  // 验证HTML内容（基本检查）
+  if (data.content.length < 10) {
+    return createErrorResponse(
+      ApiErrorCode.VALIDATION_ERROR,
+      '内容太短，请输入更多内容',
+      400
     );
   }
-}
+
+  const db = getDb();
+
+  // 验证章节是否存在
+  const chapter = await db
+    .select()
+    .from(handbookChapters)
+    .where(eq(handbookChapters.id, data.chapterId))
+    .limit(1);
+
+  if (!chapter.length) {
+    return createErrorResponse(
+      ApiErrorCode.VALIDATION_ERROR,
+      '指定的章节不存在',
+      400
+    );
+  }
+
+  // 如果有sectionId，则更新现有段落，否则创建新段落
+  if (data.sectionId) {
+    // 更新现有段落
+    const updatedSection = await db
+      .update(handbookSections)
+      .set({
+        title: data.title,
+        titleEn: data.titleEn,
+        content: data.content,
+        contentEn: data.contentEn,
+        isFree: data.paymentType === 'FREE',
+        requiredUserType: data.paymentType === 'FREE' ? ['FREE'] : ['MEMBER'],
+        updatedAt: new Date(),
+      })
+      .where(eq(handbookSections.id, data.sectionId))
+      .returning();
+
+    if (!updatedSection.length) {
+      return createErrorResponse(
+        ApiErrorCode.VALIDATION_ERROR,
+        '指定的段落不存在',
+        400
+      );
+    }
+
+    return createSuccessResponse(
+      {
+        id: data.sectionId,
+        type: 'section',
+        action: 'updated',
+      },
+      '段落更新成功'
+    );
+  } else {
+    // 创建新段落
+    // 获取当前章节的段落数量，用于设置order
+    const existingSections = await db
+      .select()
+      .from(handbookSections)
+      .where(eq(handbookSections.chapterId, data.chapterId));
+
+    const order = data.order || existingSections.length + 1;
+    const sectionId = generateId();
+
+    const newSection = await db
+      .insert(handbookSections)
+      .values({
+        id: sectionId,
+        chapterId: data.chapterId,
+        title: data.title,
+        titleEn: data.titleEn,
+        order,
+        content: data.content,
+        contentEn: data.contentEn,
+        isFree: data.paymentType === 'FREE',
+        requiredUserType: data.paymentType === 'FREE' ? ['FREE'] : ['MEMBER'],
+        wordCount: data.content.replace(/<[^>]*>/g, '').length, // 简单的字数统计
+        estimatedReadTime: Math.ceil(data.content.replace(/<[^>]*>/g, '').length / 200), // 估算阅读时间（每分钟200字）
+      })
+      .returning();
+
+    return createSuccessResponse(
+      {
+        id: sectionId,
+        type: 'section',
+        action: 'created',
+      },
+      '段落创建成功'
+    );
+  }
+});
 
 // 获取所有内容列表
-export async function GET() {
-  try {
-    const contents = Array.from(contentStorage.values());
-    return NextResponse.json({
-      success: true,
-      data: contents,
-      total: contents.length,
-    });
-  } catch (error) {
-    console.error('获取内容列表失败:', error);
-    return NextResponse.json(
-      { error: '获取内容列表失败' },
-      { status: 500 }
-    );
+export const GET = withErrorHandling(async (request: NextRequest) => {
+  const { searchParams } = new URL(request.url);
+  const chapterId = searchParams.get('chapterId');
+  const page = parseInt(searchParams.get('page') || '1');
+  const limit = parseInt(searchParams.get('limit') || '20');
+  const offset = (page - 1) * limit;
+
+  const db = getDb();
+
+  // 构建查询条件
+  let whereCondition;
+  if (chapterId) {
+    whereCondition = eq(handbookSections.chapterId, chapterId);
   }
-} 
+
+  // 获取段落列表
+  let sections: any[];
+  let total: number;
+
+  if (chapterId) {
+    sections = await db
+      .select({
+        id: handbookSections.id,
+        chapterId: handbookSections.chapterId,
+        title: handbookSections.title,
+        titleEn: handbookSections.titleEn,
+        order: handbookSections.order,
+        isFree: handbookSections.isFree,
+        wordCount: handbookSections.wordCount,
+        estimatedReadTime: handbookSections.estimatedReadTime,
+        createdAt: handbookSections.createdAt,
+        updatedAt: handbookSections.updatedAt,
+      })
+      .from(handbookSections)
+      .where(eq(handbookSections.chapterId, chapterId))
+      .orderBy(handbookSections.order)
+      .limit(limit)
+      .offset(offset);
+
+    const totalResult = await db
+      .select({ count: handbookSections.id })
+      .from(handbookSections)
+      .where(eq(handbookSections.chapterId, chapterId));
+    total = totalResult.length;
+  } else {
+    sections = await db
+      .select({
+        id: handbookSections.id,
+        chapterId: handbookSections.chapterId,
+        title: handbookSections.title,
+        titleEn: handbookSections.titleEn,
+        order: handbookSections.order,
+        isFree: handbookSections.isFree,
+        wordCount: handbookSections.wordCount,
+        estimatedReadTime: handbookSections.estimatedReadTime,
+        createdAt: handbookSections.createdAt,
+        updatedAt: handbookSections.updatedAt,
+      })
+      .from(handbookSections)
+      .orderBy(handbookSections.order)
+      .limit(limit)
+      .offset(offset);
+
+    const totalResult = await db
+      .select({ count: handbookSections.id })
+      .from(handbookSections);
+    total = totalResult.length;
+  }
+
+  return createSuccessResponse({
+    data: sections,
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+      hasNextPage: page < Math.ceil(total / limit),
+      hasPrevPage: page > 1,
+    },
+  });
+}); 

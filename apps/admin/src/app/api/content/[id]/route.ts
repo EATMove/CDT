@@ -1,11 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
-
-// 暂时使用内存存储（与保存API共享）
-// 在实际项目中，这里会从数据库查询
-const getContentStorage = () => {
-  // 这里应该从外部获取storage，暂时返回空Map
-  return new Map();
-};
+import { NextRequest } from 'next/server';
+import { getDb } from '@/lib/database';
+import { handbookSections } from 'database';
+import { eq } from 'drizzle-orm';
+import { createSuccessResponse, createErrorResponse, withErrorHandling } from '@/lib/utils';
+import { ApiErrorCode } from 'shared';
 
 interface RouteParams {
   params: {
@@ -13,147 +11,142 @@ interface RouteParams {
   };
 }
 
-export async function GET(
+export const GET = withErrorHandling(async (
   request: NextRequest,
   { params }: RouteParams
-) {
-  try {
-    const { id } = params;
+) => {
+  const { id } = params;
 
-    if (!id) {
-      return NextResponse.json(
-        { error: '缺少内容ID' },
-        { status: 400 }
-      );
-    }
-
-    // 从存储中获取内容
-    const contentStorage = getContentStorage();
-    const content = contentStorage.get(id);
-
-    if (!content) {
-      return NextResponse.json(
-        { error: '内容不存在' },
-        { status: 404 }
-      );
-    }
-
-    return NextResponse.json({
-      success: true,
-      data: content,
-    });
-
-  } catch (error) {
-    console.error('获取内容失败:', error);
-    return NextResponse.json(
-      { error: '获取内容失败' },
-      { status: 500 }
+  if (!id) {
+    return createErrorResponse(
+      ApiErrorCode.VALIDATION_ERROR,
+      '缺少内容ID',
+      400
     );
   }
-}
 
-export async function PUT(
+  const db = getDb();
+
+  // 从数据库获取段落内容
+  const section = await db
+    .select()
+    .from(handbookSections)
+    .where(eq(handbookSections.id, id))
+    .limit(1);
+
+  if (!section.length) {
+    return createErrorResponse(
+      ApiErrorCode.VALIDATION_ERROR,
+      '内容不存在',
+      404
+    );
+  }
+
+  return createSuccessResponse(section[0]);
+});
+
+export const PUT = withErrorHandling(async (
   request: NextRequest,
   { params }: RouteParams
-) {
-  try {
-    const { id } = params;
-    const data = await request.json();
+) => {
+  const { id } = params;
+  const data = await request.json();
 
-    if (!id) {
-      return NextResponse.json(
-        { error: '缺少内容ID' },
-        { status: 400 }
-      );
-    }
+  if (!id) {
+    return createErrorResponse(
+      ApiErrorCode.VALIDATION_ERROR,
+      '缺少内容ID',
+      400
+    );
+  }
 
-    // 验证必填字段
-    if (!data.title || !data.content || !data.chapterId) {
-      return NextResponse.json(
-        { error: '请填写标题、内容和章节ID' },
-        { status: 400 }
-      );
-    }
+  // 验证必填字段
+  if (!data.title || !data.content) {
+    return createErrorResponse(
+      ApiErrorCode.VALIDATION_ERROR,
+      '请填写标题和内容',
+      400
+    );
+  }
 
-    const contentStorage = getContentStorage();
-    const existingContent = contentStorage.get(id);
+  const db = getDb();
 
-    if (!existingContent) {
-      return NextResponse.json(
-        { error: '内容不存在' },
-        { status: 404 }
-      );
-    }
+  // 检查段落是否存在
+  const existingSection = await db
+    .select()
+    .from(handbookSections)
+    .where(eq(handbookSections.id, id))
+    .limit(1);
 
-    // 更新内容
-    const updatedContent = {
-      ...existingContent,
-      ...data,
-      updatedAt: new Date().toISOString(),
-    };
+  if (!existingSection.length) {
+    return createErrorResponse(
+      ApiErrorCode.VALIDATION_ERROR,
+      '内容不存在',
+      404
+    );
+  }
 
-    contentStorage.set(id, updatedContent);
-
-    console.log('内容已更新:', {
-      id,
+  // 更新段落内容
+  const updatedSection = await db
+    .update(handbookSections)
+    .set({
       title: data.title,
-      chapterId: data.chapterId,
-    });
+      titleEn: data.titleEn,
+      content: data.content,
+      contentEn: data.contentEn,
+      isFree: data.paymentType === 'FREE',
+      requiredUserType: data.paymentType === 'FREE' ? ['FREE'] : ['MEMBER'],
+      wordCount: data.content.replace(/<[^>]*>/g, '').length,
+      estimatedReadTime: Math.ceil(data.content.replace(/<[^>]*>/g, '').length / 200),
+      updatedAt: new Date(),
+    })
+    .where(eq(handbookSections.id, id))
+    .returning();
 
-    return NextResponse.json({
-      success: true,
-      data: updatedContent,
-      message: '内容更新成功',
-    });
+  return createSuccessResponse(
+    updatedSection[0],
+    '内容更新成功'
+  );
+});
 
-  } catch (error) {
-    console.error('更新内容失败:', error);
-    return NextResponse.json(
-      { error: '更新内容失败，请重试' },
-      { status: 500 }
-    );
-  }
-}
-
-export async function DELETE(
+export const DELETE = withErrorHandling(async (
   request: NextRequest,
   { params }: RouteParams
-) {
-  try {
-    const { id } = params;
+) => {
+  const { id } = params;
 
-    if (!id) {
-      return NextResponse.json(
-        { error: '缺少内容ID' },
-        { status: 400 }
-      );
-    }
-
-    const contentStorage = getContentStorage();
-    const content = contentStorage.get(id);
-
-    if (!content) {
-      return NextResponse.json(
-        { error: '内容不存在' },
-        { status: 404 }
-      );
-    }
-
-    // 删除内容
-    contentStorage.delete(id);
-
-    console.log('内容已删除:', { id });
-
-    return NextResponse.json({
-      success: true,
-      message: '内容删除成功',
-    });
-
-  } catch (error) {
-    console.error('删除内容失败:', error);
-    return NextResponse.json(
-      { error: '删除内容失败，请重试' },
-      { status: 500 }
+  if (!id) {
+    return createErrorResponse(
+      ApiErrorCode.VALIDATION_ERROR,
+      '缺少内容ID',
+      400
     );
   }
-} 
+
+  const db = getDb();
+
+  // 检查段落是否存在
+  const existingSection = await db
+    .select()
+    .from(handbookSections)
+    .where(eq(handbookSections.id, id))
+    .limit(1);
+
+  if (!existingSection.length) {
+    return createErrorResponse(
+      ApiErrorCode.VALIDATION_ERROR,
+      '内容不存在',
+      404
+    );
+  }
+
+  // 删除段落
+  await db
+    .delete(handbookSections)
+    .where(eq(handbookSections.id, id));
+
+  return createSuccessResponse(
+    { id, deleted: true },
+    '内容删除成功'
+  );
+}); 

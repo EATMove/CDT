@@ -21,7 +21,7 @@ export const GET = withErrorHandling(async (
     if (!id) {
     return createErrorResponse(
       ApiErrorCode.VALIDATION_ERROR,
-      '缺少章节ID',
+      'Chapter ID is required',
       400
     );
   }
@@ -42,7 +42,7 @@ export const GET = withErrorHandling(async (
   if (!chapter.length) {
     return createErrorResponse(
       ApiErrorCode.VALIDATION_ERROR,
-      '章节不存在',
+      'Chapter not found',
       404
     );
   }
@@ -53,7 +53,7 @@ export const GET = withErrorHandling(async (
   if (chapterData.publishStatus !== 'PUBLISHED') {
     return createErrorResponse(
       ApiErrorCode.FORBIDDEN,
-      '章节尚未发布',
+      'Chapter is not published',
       403
     );
   }
@@ -63,7 +63,7 @@ export const GET = withErrorHandling(async (
   if (!canAccess) {
     return createErrorResponse(
       ApiErrorCode.MEMBERSHIP_REQUIRED,
-      '需要会员权限才能访问此章节',
+      'Member access required to view this chapter',
       403
     );
   }
@@ -184,5 +184,5 @@ function getPreviewContent(content: string, language: string): string {
   }
   
   const preview = plainText.substring(0, maxLength);
-  return `<p>${preview}...</p><div class="text-muted-foreground text-sm mt-2">需要会员权限查看完整内容</div>`;
+  return `<p>${preview}...</p><div class="text-muted-foreground text-sm mt-2">Member access required to view full content</div>`;
 } 

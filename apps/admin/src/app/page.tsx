@@ -1,188 +1,215 @@
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+'use client';
+
+import React from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import Navigation from '@/components/Navigation';
 import { 
-  Users, 
   BookOpen, 
-  FileQuestion, 
-  BarChart3,
-  Settings,
-  Plus
-} from "lucide-react";
+  Image, 
+  Users, 
+  BarChart3, 
+  Plus,
+  TrendingUp,
+  Eye,
+  Clock
+} from 'lucide-react';
+import Link from 'next/link';
 
-export default function Dashboard() {
+export default function HomePage() {
+  // 模拟数据
+  const stats = {
+    totalChapters: 9,
+    totalImages: 3,
+    totalUsers: 4,
+    totalViews: 1250,
+  };
+
+  const recentChapters = [
+    { id: 'ch-on-001', title: '安大略省交通标志和信号', province: 'ON', status: '已发布' },
+    { id: 'ch-bc-001', title: 'BC省交通标志和信号', province: 'BC', status: '已发布' },
+    { id: 'ch-ab-001', title: '阿尔伯塔省交通标志和信号', province: 'AB', status: '已发布' },
+  ];
+
+  const quickActions = [
+    {
+      title: '新建章节',
+      description: '创建新的驾驶手册章节',
+      icon: Plus,
+      href: '/chapters',
+      color: 'bg-blue-500',
+    },
+    {
+      title: '上传图片',
+      description: '上传章节相关的图片资源',
+      icon: Image,
+      href: '/images',
+      color: 'bg-green-500',
+    },
+    {
+      title: '编辑内容',
+      description: '编辑章节内容和段落',
+      icon: BookOpen,
+      href: '/content/edit',
+      color: 'bg-purple-500',
+    },
+    {
+      title: '查看统计',
+      description: '查看用户学习数据统计',
+      icon: BarChart3,
+      href: '/analytics',
+      color: 'bg-orange-500',
+    },
+  ];
+
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b bg-white">
-        <div className="flex h-16 items-center px-4">
-          <div className="flex items-center space-x-4">
-            <BookOpen className="h-6 w-6" />
-            <h1 className="text-xl font-semibold">加拿大驾考 App 管理面板</h1>
-          </div>
-          <div className="ml-auto">
-            <Button variant="outline" size="sm">
-              <Settings className="h-4 w-4 mr-2" />
-              设置
-            </Button>
-          </div>
-        </div>
-      </header>
+    <div className="container mx-auto p-6 max-w-7xl">
+      {/* 页面标题 */}
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold">管理后台</h1>
+        <p className="text-slate-600 mt-2">加拿大驾考App - 内容管理系统</p>
+      </div>
 
-      {/* Main Content */}
-      <main className="p-6">
-        {/* Stats Cards */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">总用户数</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">1,234</div>
-              <p className="text-xs text-muted-foreground">
-                +12% 较上月
-              </p>
+      {/* 导航栏 */}
+      <Navigation />
+
+      {/* 统计卡片 */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-6">
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-slate-600">总章节数</p>
+                <p className="text-2xl font-bold">{stats.totalChapters}</p>
+              </div>
+              <BookOpen className="w-8 h-8 text-blue-500" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-slate-600">总图片数</p>
+                <p className="text-2xl font-bold">{stats.totalImages}</p>
+              </div>
+              <Image className="w-8 h-8 text-green-500" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-slate-600">注册用户</p>
+                <p className="text-2xl font-bold">{stats.totalUsers}</p>
+              </div>
+              <Users className="w-8 h-8 text-purple-500" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-slate-600">总浏览量</p>
+                <p className="text-2xl font-bold">{stats.totalViews}</p>
+              </div>
+              <Eye className="w-8 h-8 text-orange-500" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* 快速操作 */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-6">
+        {quickActions.map((action) => (
+          <Card key={action.title} className="hover:shadow-lg transition-shadow">
+            <CardContent className="p-6">
+              <div className="flex items-center space-x-4">
+                <div className={`p-3 rounded-lg ${action.color}`}>
+                  <action.icon className="w-6 h-6 text-white" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold">{action.title}</h3>
+                  <p className="text-sm text-slate-600">{action.description}</p>
+                </div>
+              </div>
+              <Button className="w-full mt-4" asChild>
+                <Link href={action.href}>
+                  开始操作
+                </Link>
+              </Button>
             </CardContent>
           </Card>
-          
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">题库总数</CardTitle>
-              <FileQuestion className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">856</div>
-              <p className="text-xs text-muted-foreground">
-                AB/BC/ON 三省题库
-              </p>
-            </CardContent>
-          </Card>
+        ))}
+      </div>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">月活用户</CardTitle>
-              <BarChart3 className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">892</div>
-              <p className="text-xs text-muted-foreground">
-                +8% 较上月
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">通过率</CardTitle>
-              <BarChart3 className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">78.5%</div>
-              <p className="text-xs text-muted-foreground">
-                模拟考试平均通过率
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Tabs for Management */}
-        <Tabs defaultValue="questions" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="questions">题库管理</TabsTrigger>
-            <TabsTrigger value="users">用户管理</TabsTrigger>
-            <TabsTrigger value="handbooks">手册管理</TabsTrigger>
-            <TabsTrigger value="analytics">数据分析</TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="questions">
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
+      {/* 最近章节 */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <BookOpen className="w-5 h-5" />
+              最近章节
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {recentChapters.map((chapter) => (
+                <div key={chapter.id} className="flex items-center justify-between p-3 border rounded-lg">
                   <div>
-                    <CardTitle>题库管理</CardTitle>
-                    <CardDescription>
-                      管理驾考题目、分类和答案解析
-                    </CardDescription>
+                    <h4 className="font-medium">{chapter.title}</h4>
+                    <p className="text-sm text-slate-600">{chapter.province}</p>
                   </div>
-                  <Button>
-                    <Plus className="h-4 w-4 mr-2" />
-                    添加题目
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="text-sm text-muted-foreground">
-                  题库管理功能开发中...
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="users">
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle>用户管理</CardTitle>
-                    <CardDescription>
-                      查看和管理用户账户、会员状态
-                    </CardDescription>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
+                      {chapter.status}
+                    </span>
+                    <Button size="sm" variant="outline" asChild>
+                      <Link href={`/content/edit?chapterId=${chapter.id}`}>
+                        编辑
+                      </Link>
+                    </Button>
                   </div>
-                  <Button variant="outline">
-                    导出用户数据
-                  </Button>
                 </div>
-              </CardHeader>
-              <CardContent>
-                <div className="text-sm text-muted-foreground">
-                  用户管理功能开发中...
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
 
-          <TabsContent value="handbooks">
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle>手册管理</CardTitle>
-                    <CardDescription>
-                      管理驾驶手册内容和章节
-                    </CardDescription>
-                  </div>
-                  <Button>
-                    <Plus className="h-4 w-4 mr-2" />
-                    添加章节
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="text-sm text-muted-foreground">
-                  手册管理功能开发中...
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="analytics">
-            <Card>
-              <CardHeader>
-                <CardTitle>数据分析</CardTitle>
-                <CardDescription>
-                  用户行为分析和学习效果统计
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="text-sm text-muted-foreground">
-                  数据分析功能开发中...
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
-      </main>
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <TrendingUp className="w-5 h-5" />
+              系统状态
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="text-sm">数据库连接</span>
+                <span className="text-sm text-green-600">正常</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm">图片存储</span>
+                <span className="text-sm text-green-600">正常</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm">API服务</span>
+                <span className="text-sm text-green-600">正常</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm">系统运行时间</span>
+                <span className="text-sm text-slate-600">2天 14小时</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

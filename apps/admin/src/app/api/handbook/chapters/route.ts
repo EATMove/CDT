@@ -25,6 +25,7 @@ export const POST = withErrorHandling(async (request: NextRequest) => {
       description: validatedData.description,
       descriptionEn: validatedData.descriptionEn,
       order: validatedData.order,
+      province: validatedData.province,
       contentFormat: validatedData.contentFormat,
       estimatedReadTime: validatedData.estimatedReadTime,
       coverImageUrl: validatedData.coverImageUrl,

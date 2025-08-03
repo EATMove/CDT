@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
 
     if (!content) {
       return NextResponse.json(
-        { error: '预览内容不能为空' },
+        { error: 'Preview content cannot be empty' },
         { status: 400 }
       );
     }
@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
       sanitizedContent = sanitizedContent.replace(pattern, '');
     });
 
-    // 生成设备特定的CSS
+    // Generate device-specific CSS
     const deviceStyles = {
       mobile: {
         maxWidth: '375px',
@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
     const currentDeviceStyle = deviceStyles[device];
     const currentThemeStyle = themeStyles[theme];
 
-    // 生成预览HTML
+    // Generate preview HTML
     const previewHtml = `
 <!DOCTYPE html>
 <html lang="zh-CN">
@@ -93,7 +93,7 @@ export async function POST(request: NextRequest) {
       font-size: ${currentDeviceStyle.fontSize};
     }
     
-    /* 确保图片响应式 */
+    /* Ensure images are responsive */
     img {
       max-width: 100% !important;
       height: auto !important;
@@ -101,7 +101,7 @@ export async function POST(request: NextRequest) {
       margin: 8px 0;
     }
     
-    /* 标题样式 */
+    /* Title styles */
     h1, h2, h3, h4, h5, h6 {
       margin: 16px 0 8px 0;
       font-weight: bold;
@@ -113,12 +113,12 @@ export async function POST(request: NextRequest) {
     h3 { font-size: 1.3em; }
     h4 { font-size: 1.1em; }
     
-    /* 段落样式 */
+    /* Paragraph styles */
     p {
       margin: 0 0 12px 0;
     }
     
-    /* 列表样式 */
+    /* List styles */
     ul, ol {
       margin: 12px 0;
       padding-left: 24px;
@@ -128,13 +128,13 @@ export async function POST(request: NextRequest) {
       margin: 4px 0;
     }
     
-    /* 链接样式 */
+    /* Link styles */
     a {
       color: ${theme === 'dark' ? '#60A5FA' : '#2563EB'};
       text-decoration: underline;
     }
     
-    /* 代码样式 */
+    /* Code styles */
     code {
       background-color: ${theme === 'dark' ? '#374151' : '#F3F4F6'};
       color: ${theme === 'dark' ? '#F9FAFB' : '#1F2937'};
@@ -144,7 +144,7 @@ export async function POST(request: NextRequest) {
       font-size: 0.9em;
     }
     
-    /* 表格样式 */
+    /* Table styles */
     table {
       width: 100%;
       border-collapse: collapse;
@@ -209,9 +209,9 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('生成预览失败:', error);
+    console.error('Failed to generate preview:', error);
     return NextResponse.json(
-      { error: '生成预览失败，请检查HTML格式' },
+      { error: 'Failed to generate preview, please check the HTML format' },
       { status: 500 }
     );
   }

@@ -27,7 +27,7 @@ export const POST = withErrorHandling(async (request: NextRequest) => {
   if (data.content.length < 10) {
     return createErrorResponse(
       ApiErrorCode.VALIDATION_ERROR,
-      '内容太短，请输入更多内容',
+      'Content is too short, please enter more content',
       400
     );
   }
@@ -44,7 +44,7 @@ export const POST = withErrorHandling(async (request: NextRequest) => {
   if (!chapter.length) {
     return createErrorResponse(
       ApiErrorCode.VALIDATION_ERROR,
-      '指定的章节不存在',
+      'Chapter not found',
       400
     );
   }
@@ -69,7 +69,7 @@ export const POST = withErrorHandling(async (request: NextRequest) => {
     if (!updatedSection.length) {
       return createErrorResponse(
         ApiErrorCode.VALIDATION_ERROR,
-        '指定的段落不存在',
+        'Section not found',
         400
       );
     }
@@ -80,7 +80,7 @@ export const POST = withErrorHandling(async (request: NextRequest) => {
         type: 'section',
         action: 'updated',
       },
-      '段落更新成功'
+      'Section updated successfully'
     );
   } else {
     // 创建新段落
@@ -116,7 +116,7 @@ export const POST = withErrorHandling(async (request: NextRequest) => {
         type: 'section',
         action: 'created',
       },
-      '段落创建成功'
+      'Section created successfully'
     );
   }
 });

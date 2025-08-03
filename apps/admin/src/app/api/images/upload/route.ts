@@ -19,7 +19,7 @@ export const POST = withErrorHandling(async (request: NextRequest) => {
   if (!file) {
     return createErrorResponse(
       ApiErrorCode.VALIDATION_ERROR,
-      '请选择要上传的文件',
+      'Please select a file to upload',
       400
     );
   }
@@ -29,17 +29,17 @@ export const POST = withErrorHandling(async (request: NextRequest) => {
   if (!allowedTypes.includes(file.type)) {
     return createErrorResponse(
       ApiErrorCode.VALIDATION_ERROR,
-      '不支持的文件格式，请上传 JPG、PNG、WebP 或 GIF 图片',
+      'Unsupported file format, please upload JPG, PNG, WebP, or GIF images',
       400
     );
   }
 
-  // 验证文件大小 (5MB)
-  const maxSize = 5 * 1024 * 1024;
+  // 验证文件大小 (4MB)
+  const maxSize = 4 * 1024 * 1024;
   if (file.size > maxSize) {
     return createErrorResponse(
       ApiErrorCode.VALIDATION_ERROR,
-      '文件大小不能超过 5MB',
+      'File size cannot exceed 4MB',
       400
     );
   }
@@ -48,7 +48,7 @@ export const POST = withErrorHandling(async (request: NextRequest) => {
   if (!chapterId && !sectionId) {
     return createErrorResponse(
       ApiErrorCode.VALIDATION_ERROR,
-      '图片必须关联到章节或段落',
+      'Image must be associated with a chapter or section',
       400
     );
   }
@@ -116,13 +116,13 @@ export const POST = withErrorHandling(async (request: NextRequest) => {
       captionEn,
       usage,
       order,
-    }, '图片上传成功');
+    }, 'Image uploaded successfully');
 
   } catch (error) {
-    console.error('图片上传失败:', error);
+    console.error('Image upload failed:', error);
     return createErrorResponse(
       ApiErrorCode.EXTERNAL_SERVICE_ERROR,
-      '图片上传失败，请重试',
+      'Image upload failed, please try again',
       500
     );
   }
@@ -138,14 +138,14 @@ export const GET = withErrorHandling(async (request: NextRequest) => {
   if (!chapterId && !sectionId) {
     return createErrorResponse(
       ApiErrorCode.VALIDATION_ERROR,
-      '必须指定章节ID或段落ID',
+      'Chapter ID or section ID must be specified',
       400
     );
   }
 
      const db = getDb();
    
-   // 简化查询逻辑
+   // Simplified query logic
    let images: any[];
    
    if (chapterId && usage) {

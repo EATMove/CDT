@@ -20,7 +20,7 @@ export const GET = withErrorHandling(async (
   if (!id) {
     return createErrorResponse(
       ApiErrorCode.VALIDATION_ERROR,
-      '缺少内容ID',
+      'Content ID is required',
       400
     );
   }
@@ -37,7 +37,7 @@ export const GET = withErrorHandling(async (
   if (!section.length) {
     return createErrorResponse(
       ApiErrorCode.VALIDATION_ERROR,
-      '内容不存在',
+      'Content not found',
       404
     );
   }
@@ -55,7 +55,7 @@ export const PUT = withErrorHandling(async (
   if (!id) {
     return createErrorResponse(
       ApiErrorCode.VALIDATION_ERROR,
-      '缺少内容ID',
+      'Content ID is required',
       400
     );
   }
@@ -64,7 +64,7 @@ export const PUT = withErrorHandling(async (
   if (!data.title || !data.content) {
     return createErrorResponse(
       ApiErrorCode.VALIDATION_ERROR,
-      '请填写标题和内容',
+      'Title and content are required',
       400
     );
   }
@@ -81,7 +81,7 @@ export const PUT = withErrorHandling(async (
   if (!existingSection.length) {
     return createErrorResponse(
       ApiErrorCode.VALIDATION_ERROR,
-      '内容不存在',
+      'Content not found',
       404
     );
   }
@@ -105,7 +105,7 @@ export const PUT = withErrorHandling(async (
 
   return createSuccessResponse(
     updatedSection[0],
-    '内容更新成功'
+    'Content updated successfully'
   );
 });
 
@@ -118,7 +118,7 @@ export const DELETE = withErrorHandling(async (
   if (!id) {
     return createErrorResponse(
       ApiErrorCode.VALIDATION_ERROR,
-      '缺少内容ID',
+      'Content ID is required',
       400
     );
   }
@@ -135,7 +135,7 @@ export const DELETE = withErrorHandling(async (
   if (!existingSection.length) {
     return createErrorResponse(
       ApiErrorCode.VALIDATION_ERROR,
-      '内容不存在',
+      'Content not found',
       404
     );
   }
@@ -147,6 +147,6 @@ export const DELETE = withErrorHandling(async (
 
   return createSuccessResponse(
     { id, deleted: true },
-    '内容删除成功'
+    'Content deleted successfully'
   );
 }); 

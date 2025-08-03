@@ -21,7 +21,7 @@ export const GET = withErrorHandling(async (
   if (!id) {
     return createErrorResponse(
       ApiErrorCode.VALIDATION_ERROR,
-      '缺少章节ID',
+      'Chapter ID is required',
       400
     );
   }
@@ -38,7 +38,7 @@ export const GET = withErrorHandling(async (
   if (!chapter.length) {
     return createErrorResponse(
       ApiErrorCode.VALIDATION_ERROR,
-      '章节不存在',
+      'Chapter not found',
       404
     );
   }
@@ -72,7 +72,7 @@ export const PUT = withErrorHandling(async (
   if (!id) {
     return createErrorResponse(
       ApiErrorCode.VALIDATION_ERROR,
-      '缺少章节ID',
+      'Chapter ID is required',
       400
     );
   }
@@ -92,7 +92,7 @@ export const PUT = withErrorHandling(async (
   if (!existingChapter.length) {
     return createErrorResponse(
       ApiErrorCode.VALIDATION_ERROR,
-      '章节不存在',
+      'Chapter not found',
       404
     );
   }
@@ -109,7 +109,7 @@ export const PUT = withErrorHandling(async (
 
   return createSuccessResponse(
     updatedChapter[0],
-    '章节更新成功'
+    'Chapter updated successfully'
   );
 });
 
@@ -123,7 +123,7 @@ export const DELETE = withErrorHandling(async (
   if (!id) {
     return createErrorResponse(
       ApiErrorCode.VALIDATION_ERROR,
-      '缺少章节ID',
+      'Chapter ID is required',
       400
     );
   }
@@ -140,7 +140,7 @@ export const DELETE = withErrorHandling(async (
   if (!existingChapter.length) {
     return createErrorResponse(
       ApiErrorCode.VALIDATION_ERROR,
-      '章节不存在',
+      'Chapter not found',
       404
     );
   }
@@ -154,7 +154,7 @@ export const DELETE = withErrorHandling(async (
   if (sectionsCount.length > 0) {
     return createErrorResponse(
       ApiErrorCode.VALIDATION_ERROR,
-      '无法删除：该章节下还有段落内容，请先删除所有段落',
+      'Cannot delete: There are sections under this chapter, please delete all sections first',
       400
     );
   }
@@ -166,6 +166,6 @@ export const DELETE = withErrorHandling(async (
 
   return createSuccessResponse(
     { id, deleted: true },
-    '章节删除成功'
+    'Chapter deleted successfully'
   );
 }); 

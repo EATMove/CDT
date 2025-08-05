@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { Upload, Eye, Save, Image as ImageIcon, Smartphone, Tablet, Monitor, Copy, Code2, Palette } from 'lucide-react';
 import { toast } from 'sonner';
+import ImageSelector from '@/components/ImageSelector';
 
 // 动态导入Monaco Editor
 import dynamic from 'next/dynamic';
@@ -156,13 +157,14 @@ export default function ContentEditPage() {
         throw new Error(errorData.error || '上传失败');
       }
 
-      const uploadResult = await response.json();
+      const result = await response.json();
+      const uploadResult = result.data;
       
       // 在编辑器中插入图片HTML
       if (editorRef.current) {
         const editor = editorRef.current;
         const selection = editor.getSelection();
-        const imageHtml = `<img src="${uploadResult.url}" alt="${uploadResult.filename}" style="max-width: 100%; height: auto; border-radius: 8px; margin: 16px 0;" />`;
+        const imageHtml = `<img src="${uploadResult.url}" alt="${uploadResult.originalName}" style="max-width: 100%; height: auto; border-radius: 8px; margin: 16px 0;" />`;
         
         editor.executeEdits('insert-image', [{
           range: selection,
@@ -380,8 +382,35 @@ export default function ContentEditPage() {
                  disabled={uploading}
                >
                  <ImageIcon className="w-4 h-4 mr-1" />
-                 {uploading ? '上传中...' : '插入图片'}
+                 {uploading ? '上传中...' : '上传图片'}
                </Button>
+               
+               <ImageSelector
+                 onImageSelect={(image) => {
+                   if (editorRef.current) {
+                     const editor = editorRef.current;
+                     const selection = editor.getSelection();
+                     const imageHtml = `<img src="${image.fileUrl}" alt="${image.altText || image.originalName}" style="max-width: 100%; height: auto; border-radius: 8px; margin: 16px 0;" />`;
+                     
+                     editor.executeEdits('insert-image', [{
+                       range: selection,
+                       text: '\n' + imageHtml + '\n'
+                     }]);
+                     
+                     // 更新formData
+                     const newContent = editor.getValue();
+                     handleInputChange('content', newContent);
+                     
+                     toast.success('图片已插入到编辑器');
+                   }
+                 }}
+                 trigger={
+                   <Button variant="outline" size="sm">
+                     <Eye className="w-4 h-4 mr-1" />
+                     选择图片
+                   </Button>
+                 }
+               />
                
                <Separator orientation="vertical" className="h-6" />
                

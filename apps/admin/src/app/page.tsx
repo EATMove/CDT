@@ -33,32 +33,11 @@ export default function HomePage() {
 
   const quickActions = [
     {
-      title: '新建章节',
-      description: '创建新的驾驶手册章节',
-      icon: Plus,
+      title: '章节管理',
+      description: '管理驾驶手册章节',
+      icon: BookOpen,
       href: '/chapters',
       color: 'bg-blue-500',
-    },
-    {
-      title: '上传图片',
-      description: '上传章节相关的图片资源',
-      icon: Image,
-      href: '/images',
-      color: 'bg-green-500',
-    },
-    {
-      title: '编辑内容',
-      description: '编辑章节内容和段落',
-      icon: BookOpen,
-      href: '/content/edit',
-      color: 'bg-purple-500',
-    },
-    {
-      title: '查看统计',
-      description: '查看用户学习数据统计',
-      icon: BarChart3,
-      href: '/analytics',
-      color: 'bg-orange-500',
     },
   ];
 
@@ -122,30 +101,6 @@ export default function HomePage() {
             </div>
           </CardContent>
         </Card>
-      </div>
-
-      {/* 快速操作 */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-6">
-        {quickActions.map((action) => (
-          <Card key={action.title} className="hover:shadow-lg transition-shadow">
-            <CardContent className="p-6">
-              <div className="flex items-center space-x-4">
-                <div className={`p-3 rounded-lg ${action.color}`}>
-                  <action.icon className="w-6 h-6 text-white" />
-                </div>
-                <div className="flex-1">
-                  <h3 className="font-semibold">{action.title}</h3>
-                  <p className="text-sm text-slate-600">{action.description}</p>
-                </div>
-              </div>
-              <Button className="w-full mt-4" asChild>
-                <Link href={action.href}>
-                  开始操作
-                </Link>
-              </Button>
-            </CardContent>
-          </Card>
-        ))}
       </div>
 
       {/* 最近章节 */}

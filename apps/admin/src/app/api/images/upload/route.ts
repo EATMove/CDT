@@ -44,14 +44,14 @@ export const POST = withErrorHandling(async (request: NextRequest) => {
     );
   }
 
-  // 验证必须关联到章节或段落
-  if (!chapterId && !sectionId) {
-    return createErrorResponse(
-      ApiErrorCode.VALIDATION_ERROR,
-      'Image must be associated with a chapter or section',
-      400
-    );
-  }
+  // 章节和段落ID是可选的，用于关联图片
+  // if (!chapterId && !sectionId) {
+  //   return createErrorResponse(
+  //     ApiErrorCode.VALIDATION_ERROR,
+  //     'Image must be associated with a chapter or section',
+  //     400
+  //   );
+  // }
 
   try {
     // 生成唯一文件名
@@ -116,7 +116,7 @@ export const POST = withErrorHandling(async (request: NextRequest) => {
       captionEn,
       usage,
       order,
-    }, 'Image uploaded successfully');
+    }, '图片上传成功');
 
   } catch (error) {
     console.error('Image upload failed:', error);

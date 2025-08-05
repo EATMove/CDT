@@ -1,6 +1,6 @@
 import { pgTable, varchar, timestamp, text, boolean, integer, pgEnum, json } from 'drizzle-orm/pg-core';
 import { createInsertSchema, createSelectSchema } from 'drizzle-zod';
-import { users } from './users';
+import { users, provinceEnum } from './users';
 
 // 章节状态枚举
 export const chapterStatusEnum = pgEnum('chapter_status', ['LOCKED', 'UNLOCKED', 'IN_PROGRESS', 'COMPLETED']);
@@ -22,6 +22,9 @@ export const handbookChapters = pgTable('handbook_chapters', {
   description: text('description').notNull(),
   descriptionEn: text('description_en'),
   order: integer('order').notNull(),
+  
+  // 省份支持 - 新增
+  province: provinceEnum('province').notNull(),
   
   // 内容相关
   contentFormat: contentFormatEnum('content_format').notNull().default('HTML'),
@@ -65,7 +68,7 @@ export const handbookSections = pgTable('handbook_sections', {
   
   // 付费控制
   isFree: boolean('is_free').notNull().default(true),
-  requiredUserType: text('required_user_type').array().default(['FREE']), // ['FREE', 'TRIAL', 'MEMBER']
+  requiredUserType: text('required_user_type').array(), // ['FREE', 'TRIAL', 'MEMBER']
   
   // 阅读估算
   wordCount: integer('word_count').default(0),
@@ -133,6 +136,9 @@ export const readingRecords = pgTable('reading_records', {
   chapterId: varchar('chapter_id', { length: 36 }).notNull().references(() => handbookChapters.id, { onDelete: 'cascade' }),
   sectionId: varchar('section_id', { length: 36 }).references(() => handbookSections.id, { onDelete: 'cascade' }),
   
+  // 省份支持 - 新增
+  province: provinceEnum('province').notNull(),
+  
   // 阅读进度
   progress: integer('progress').notNull().default(0), // 0-100 百分比
   currentPosition: integer('current_position').notNull().default(0), // 在段落中的位置
@@ -155,6 +161,9 @@ export const bookmarks = pgTable('bookmarks', {
   userId: varchar('user_id', { length: 36 }).notNull().references(() => users.id, { onDelete: 'cascade' }),
   chapterId: varchar('chapter_id', { length: 36 }).notNull().references(() => handbookChapters.id, { onDelete: 'cascade' }),
   sectionId: varchar('section_id', { length: 36 }).references(() => handbookSections.id, { onDelete: 'cascade' }),
+  
+  // 省份支持 - 新增
+  province: provinceEnum('province').notNull(),
   
   // 书签位置
   position: integer('position').notNull(), // 在段落中的字符位置

@@ -1,27 +1,31 @@
 {
-  "name": "canadian-driving-test",
+  "name": "cdt-monorepo",
   "version": "1.0.0",
-  "description": "加拿大驾考App - 前后端monorepo项目",
+  "description": "加拿大驾考 App - Monorepo",
   "private": true,
   "workspaces": [
     "apps/*",
     "packages/*"
   ],
   "scripts": {
-    "dev": "turbo run dev",
     "build": "turbo run build",
-    "lint": "turbo run lint",
+    "dev": "turbo run dev",
     "type-check": "turbo run type-check",
-    "mobile": "cd apps/mobile && pnpm run dev",
-    "admin": "cd apps/admin && pnpm run dev",
-    "db:generate": "cd packages/database && pnpm run generate",
-    "db:migrate": "cd packages/database && pnpm run migrate",
-    "db:studio": "cd packages/database && pnpm run studio"
+    "mobile": "cd apps/mobile && pnpm dev",
+    "admin": "cd apps/admin && pnpm dev",
+    "db:generate": "cd apps/admin && pnpm db:generate",
+    "db:studio": "cd apps/admin && pnpm db:studio",
+    "db:init": "cd apps/admin && pnpm db:init",
+    "db:init:migrate-only": "cd apps/admin && pnpm db:init:migrate-only",
+    "db:seed": "cd apps/admin && pnpm db:seed",
+    "db:check": "cd apps/admin && pnpm db:check",
+    "db:reset": "cd apps/admin && pnpm db:reset"
   },
   "devDependencies": {
-    "@types/node": "^20.0.0",
-    "turbo": "^1.11.0",
-    "typescript": "^5.0.0"
+    "turbo": "^2.0.0"
   },
-  "packageManager": "pnpm@9.0.0"
+  "packageManager": "pnpm@9.0.0",
+  "engines": {
+    "node": ">=18"
+  }
 } 

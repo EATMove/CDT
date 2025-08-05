@@ -44,4 +44,9 @@ export function closeDatabase() {
 }
 
 // 导出表定义以便在其他地方使用
-export { allTables as tables }; 
+export { allTables as tables };
+
+// 导出数据库初始化功能
+export { runMigrations } from './migrate';
+export { seedDatabase } from './seed';
+export { initDatabase } from './init'; 

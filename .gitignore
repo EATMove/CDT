@@ -39,3 +39,23 @@ pnpm-debug.log*
 
 # turbo
 .turbo/
+
+# build outputs
+build/
+dist/
+.next/
+out/
+
+# IDE
+.vscode/
+.idea/
+
+# temporary files
+*.tmp
+*.temp
+
+# logs
+*.log
+
+# coverage reports
+coverage/

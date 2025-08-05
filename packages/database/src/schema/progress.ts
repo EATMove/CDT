@@ -1,6 +1,6 @@
 import { pgTable, varchar, timestamp, boolean, integer, decimal } from 'drizzle-orm/pg-core';
 import { createInsertSchema, createSelectSchema } from 'drizzle-zod';
-import { users } from './users';
+import { users, provinceEnum } from './users';
 import { handbookChapters } from './handbook';
 import { questions } from './quiz';
 
@@ -9,6 +9,10 @@ export const chapterProgress = pgTable('chapter_progress', {
   id: varchar('id', { length: 36 }).primaryKey(),
   userId: varchar('user_id', { length: 36 }).notNull().references(() => users.id, { onDelete: 'cascade' }),
   chapterId: varchar('chapter_id', { length: 36 }).notNull().references(() => handbookChapters.id, { onDelete: 'cascade' }),
+  
+  // 省份支持 - 新增
+  province: provinceEnum('province').notNull(),
+  
   readingProgress: integer('reading_progress').notNull().default(0), // 0-100 阅读进度
   isReadingCompleted: boolean('is_reading_completed').notNull().default(false),
   practiceCount: integer('practice_count').notNull().default(0), // 练习次数
@@ -26,6 +30,10 @@ export const wrongQuestions = pgTable('wrong_questions', {
   id: varchar('id', { length: 36 }).primaryKey(),
   userId: varchar('user_id', { length: 36 }).notNull().references(() => users.id, { onDelete: 'cascade' }),
   questionId: varchar('question_id', { length: 36 }).notNull().references(() => questions.id, { onDelete: 'cascade' }),
+  
+  // 省份支持 - 新增
+  province: provinceEnum('province').notNull(),
+  
   wrongAnswers: varchar('wrong_answers', { length: 500 }).array().notNull(), // 错误答案选项ID数组
   correctAnswers: varchar('correct_answers', { length: 500 }).array().notNull(), // 正确答案选项ID数组
   wrongCount: integer('wrong_count').notNull().default(1), // 答错次数
@@ -40,6 +48,10 @@ export const wrongQuestions = pgTable('wrong_questions', {
 export const learningStats = pgTable('learning_stats', {
   id: varchar('id', { length: 36 }).primaryKey(),
   userId: varchar('user_id', { length: 36 }).notNull().references(() => users.id, { onDelete: 'cascade' }),
+  
+  // 省份支持 - 新增
+  province: provinceEnum('province').notNull(),
+  
   totalStudyTime: integer('total_study_time').notNull().default(0), // 总学习时间（秒）
   totalQuestions: integer('total_questions').notNull().default(0), // 总题目数
   correctQuestions: integer('correct_questions').notNull().default(0), // 答对题目数

@@ -48,8 +48,12 @@ export default function ImagesPage() {
     try {
       const response = await fetch('/api/images');
       if (response.ok) {
-        const data = await response.json();
-        setImages(data);
+        const result = await response.json();
+        if (result.success) {
+          setImages(result.data.data || []);
+        } else {
+          toast.error(result.message || '加载图片列表失败');
+        }
       } else {
         toast.error('加载图片列表失败');
       }
@@ -82,10 +86,12 @@ export default function ImagesPage() {
         });
 
         if (!response.ok) {
-          throw new Error('上传失败');
+          const errorData = await response.json();
+          throw new Error(errorData.message || '上传失败');
         }
 
-        return await response.json();
+        const result = await response.json();
+        return result.data;
       } catch (error) {
         console.error('上传失败:', error);
         toast.error(`${file.name} 上传失败`);
@@ -119,8 +125,13 @@ export default function ImagesPage() {
       });
 
       if (response.ok) {
-        toast.success('图片删除成功');
-        loadImages();
+        const result = await response.json();
+        if (result.success) {
+          toast.success('图片删除成功');
+          loadImages();
+        } else {
+          toast.error(result.message || '删除失败');
+        }
       } else {
         toast.error('删除失败');
       }
@@ -148,9 +159,14 @@ export default function ImagesPage() {
       });
 
       if (response.ok) {
-        toast.success('批量删除成功');
-        setSelectedImages([]);
-        loadImages();
+        const result = await response.json();
+        if (result.success) {
+          toast.success('批量删除成功');
+          setSelectedImages([]);
+          loadImages();
+        } else {
+          toast.error(result.message || '批量删除失败');
+        }
       } else {
         toast.error('批量删除失败');
       }

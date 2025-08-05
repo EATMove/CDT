@@ -1,6 +1,6 @@
 import { pgTable, varchar, timestamp, text, boolean, integer, pgEnum, decimal } from 'drizzle-orm/pg-core';
 import { createInsertSchema, createSelectSchema } from 'drizzle-zod';
-import { users } from './users';
+import { users, provinceEnum } from './users';
 import { handbookChapters } from './handbook';
 
 // 题目类型枚举
@@ -16,6 +16,7 @@ export const languageEnum = pgEnum('language', ['ZH', 'EN', 'HYBRID']);
 export const questions = pgTable('questions', {
   id: varchar('id', { length: 36 }).primaryKey(),
   chapterId: varchar('chapter_id', { length: 36 }).notNull().references(() => handbookChapters.id, { onDelete: 'cascade' }),
+  province: provinceEnum('province').notNull(),
   type: questionTypeEnum('type').notNull(),
   title: varchar('title', { length: 300 }).notNull(),
   titleEn: varchar('title_en', { length: 300 }),
@@ -47,6 +48,10 @@ export const quizSessions = pgTable('quiz_sessions', {
   userId: varchar('user_id', { length: 36 }).notNull().references(() => users.id, { onDelete: 'cascade' }),
   type: quizTypeEnum('type').notNull(),
   chapterId: varchar('chapter_id', { length: 36 }).references(() => handbookChapters.id, { onDelete: 'cascade' }),
+  
+  // 省份支持 - 新增
+  province: provinceEnum('province').notNull(),
+  
   language: languageEnum('language').notNull().default('HYBRID'),
   questionIds: text('question_ids').array().notNull(), // 题目ID数组
   startTime: timestamp('start_time').notNull(),

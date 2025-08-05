@@ -6,9 +6,9 @@ export const isValidEmail = (email: string): boolean => {
   return emailRegex.test(email);
 };
 
-// 手机号验证（中国）
+// 手机号验证（加拿大）
 export const isValidPhone = (phone: string): boolean => {
-  const phoneRegex = /^1[3-9]\d{9}$/;
+  const phoneRegex = /^[2-9]\d{9}$/;
   return phoneRegex.test(phone);
 };
 

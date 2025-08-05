@@ -8,7 +8,8 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Search, Filter, Edit, Trash2, Eye, BookOpen, Calendar, User } from 'lucide-react';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Plus, Search, Filter, Edit, Trash2, Eye, BookOpen, Calendar, User, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
 import Link from 'next/link';
 
@@ -54,8 +55,12 @@ export default function ChaptersPage() {
     try {
       const response = await fetch('/api/chapters');
       if (response.ok) {
-        const data = await response.json();
-        setChapters(data);
+        const result = await response.json();
+        if (result.success) {
+          setChapters(result.data.data || []);
+        } else {
+          toast.error(result.message || '加载章节列表失败');
+        }
       } else {
         toast.error('加载章节列表失败');
       }
@@ -76,8 +81,13 @@ export default function ChaptersPage() {
       });
 
       if (response.ok) {
-        toast.success('章节删除成功');
-        loadChapters();
+        const result = await response.json();
+        if (result.success) {
+          toast.success('章节删除成功');
+          loadChapters();
+        } else {
+          toast.error(result.message || '删除失败');
+        }
       } else {
         toast.error('删除失败');
       }
@@ -131,8 +141,18 @@ export default function ChaptersPage() {
     <div className="container mx-auto p-6 max-w-7xl">
       {/* 页面标题 */}
       <div className="mb-6">
-        <h1 className="text-3xl font-bold">章节管理</h1>
-        <p className="text-slate-600 mt-2">管理各省份的驾驶手册章节</p>
+        <div className="flex items-center gap-4">
+          <Button variant="outline" size="sm" asChild>
+            <Link href="/">
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              返回
+            </Link>
+          </Button>
+          <div>
+            <h1 className="text-3xl font-bold">章节管理</h1>
+            <p className="text-slate-600 mt-2">管理各省份的驾驶手册章节</p>
+          </div>
+        </div>
       </div>
 
       {/* 操作栏 */}
@@ -195,107 +215,114 @@ export default function ChaptersPage() {
           <p className="mt-2 text-slate-600">加载中...</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredChapters.map((chapter) => (
-            <Card key={chapter.id} className="overflow-hidden">
-              {chapter.coverImageUrl && (
-                <div className="h-48 overflow-hidden">
-                  <img
-                    src={chapter.coverImageUrl}
-                    alt={chapter.coverImageAlt || chapter.title}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-              )}
-              <CardContent className="p-6">
-                <div className="space-y-4">
-                  {/* 标题和状态 */}
-                  <div>
-                    <h3 className="font-semibold text-lg mb-2 line-clamp-2">
-                      {chapter.title}
-                    </h3>
-                    <div className="flex items-center gap-2 mb-2">
-                      <Badge className={getStatusColor(chapter.publishStatus)}>
-                        {getStatusName(chapter.publishStatus)}
-                      </Badge>
+        <Card>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>标题</TableHead>
+                  <TableHead>省份</TableHead>
+                  <TableHead>排序</TableHead>
+                  <TableHead>状态</TableHead>
+                  <TableHead>付费类型</TableHead>
+                  <TableHead>预计阅读时间</TableHead>
+                  <TableHead>创建时间</TableHead>
+                  <TableHead className="text-right">操作</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredChapters.map((chapter) => (
+                  <TableRow key={chapter.id}>
+                    <TableCell>
+                      <div>
+                        <div className="font-medium">{chapter.title}</div>
+                        <div className="text-sm text-slate-500 line-clamp-2">
+                          {chapter.description}
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
                       <Badge variant="outline">
                         {getProvinceName(chapter.province)}
                       </Badge>
-                    </div>
-                  </div>
-
-                  {/* 描述 */}
-                  <p className="text-slate-600 text-sm line-clamp-3">
-                    {chapter.description}
-                  </p>
-
-                  {/* 元信息 */}
-                  <div className="space-y-2 text-sm text-slate-500">
-                    <div className="flex items-center gap-2">
-                      <BookOpen className="w-4 h-4" />
-                      <span>第 {chapter.order} 章</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Calendar className="w-4 h-4" />
-                      <span>预计阅读 {chapter.estimatedReadTime} 分钟</span>
-                    </div>
-                    {chapter.sectionsCount !== undefined && (
-                      <div className="flex items-center gap-2">
-                        <User className="w-4 h-4" />
-                        <span>{chapter.sectionsCount} 个段落</span>
+                    </TableCell>
+                    <TableCell>{chapter.order}</TableCell>
+                    <TableCell>
+                      <Badge className={getStatusColor(chapter.publishStatus)}>
+                        {getStatusName(chapter.publishStatus)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <span className="text-sm text-slate-600">
+                        {chapter.paymentType === 'FREE' ? '免费' : 
+                         chapter.paymentType === 'MEMBER_ONLY' ? '仅会员' :
+                         chapter.paymentType === 'TRIAL_INCLUDED' ? '试用包含' : '高级'}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1">
+                        <Calendar className="w-3 h-3" />
+                        <span className="text-sm">{chapter.estimatedReadTime} 分钟</span>
                       </div>
-                    )}
-                  </div>
-
-                  {/* 操作按钮 */}
-                  <div className="flex items-center gap-2 pt-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      asChild
-                    >
-                      <Link href={`/chapters/${chapter.id}`}>
-                        <Eye className="w-4 h-4 mr-1" />
-                        查看
-                      </Link>
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      asChild
-                    >
-                      <Link href={`/content/edit?chapterId=${chapter.id}`}>
-                        <Edit className="w-4 h-4 mr-1" />
-                        编辑
-                      </Link>
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      onClick={() => handleDeleteChapter(chapter.id)}
-                    >
-                      <Trash2 className="w-4 h-4 mr-1" />
-                      删除
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                    </TableCell>
+                    <TableCell>
+                      <span className="text-sm text-slate-500">
+                        {new Date(chapter.createdAt).toLocaleDateString('zh-CN')}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center gap-2 justify-end">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          asChild
+                        >
+                          <Link href={`/chapters/${chapter.id}`}>
+                            <Eye className="w-4 h-4 mr-1" />
+                            查看
+                          </Link>
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          asChild
+                        >
+                          <Link href={`/content/edit?chapterId=${chapter.id}`}>
+                            <Edit className="w-4 h-4 mr-1" />
+                            编辑
+                          </Link>
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => handleDeleteChapter(chapter.id)}
+                        >
+                          <Trash2 className="w-4 h-4 mr-1" />
+                          删除
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
       )}
 
       {!loading && filteredChapters.length === 0 && (
-        <div className="text-center py-12">
-          <p className="text-slate-600">暂无章节</p>
-          <Button 
-            className="mt-4" 
-            onClick={() => setShowCreateForm(true)}
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            创建第一个章节
-          </Button>
-        </div>
+        <Card>
+          <CardContent className="text-center py-12">
+            <p className="text-slate-600">暂无章节</p>
+            <Button 
+              className="mt-4" 
+              onClick={() => setShowCreateForm(true)}
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              创建第一个章节
+            </Button>
+          </CardContent>
+        </Card>
       )}
 
       {/* 创建章节表单 */}
@@ -343,8 +370,13 @@ function CreateChapterForm({ onClose, onSuccess }: { onClose: () => void; onSucc
       });
 
       if (response.ok) {
-        toast.success('章节创建成功');
-        onSuccess();
+        const result = await response.json();
+        if (result.success) {
+          toast.success('章节创建成功');
+          onSuccess();
+        } else {
+          toast.error(result.message || '创建失败');
+        }
       } else {
         const error = await response.json();
         toast.error(error.message || '创建失败');

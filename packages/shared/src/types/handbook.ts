@@ -230,6 +230,7 @@ export const CreateChapterSchema = z.object({
   description: z.string().min(1, '章节描述不能为空'),
   descriptionEn: z.string().optional(),
   order: z.number().int().min(1, '章节顺序必须大于0'),
+  province: z.enum(['AB', 'BC', 'ON']),
   contentFormat: z.enum(['HTML', 'MARKDOWN', 'PLAIN_TEXT']).default('HTML'),
   estimatedReadTime: z.number().int().min(1, '预估阅读时间必须大于0'),
   coverImageUrl: z.string().url('封面图片URL格式不正确').optional(),

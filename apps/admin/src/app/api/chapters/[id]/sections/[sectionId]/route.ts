@@ -17,7 +17,7 @@ export const GET = withErrorHandling(async (
   request: NextRequest,
   { params }: RouteParams
 ) => {
-  const { id, sectionId } = params;
+  const { id, sectionId } = await params;
 
   if (!id || !sectionId) {
     return createErrorResponse(
@@ -57,7 +57,7 @@ export const PUT = withErrorHandling(async (
   request: NextRequest,
   { params }: RouteParams
 ) => {
-  const { id, sectionId } = params;
+  const { id, sectionId } = await params;
   const data = await request.json();
 
   if (!id || !sectionId) {
@@ -121,7 +121,7 @@ export const DELETE = withErrorHandling(async (
   request: NextRequest,
   { params }: RouteParams
 ) => {
-  const { id, sectionId } = params;
+  const { id, sectionId } = await params;
 
   if (!id || !sectionId) {
     return createErrorResponse(

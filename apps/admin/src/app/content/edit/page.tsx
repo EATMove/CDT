@@ -179,7 +179,14 @@ export default function ContentEditPage() {
 
   // 处理编辑器内容变化
   const handleEditorChange = useCallback((value: string | undefined) => {
-    handleInputChange('content', value || '');
+    if (value !== undefined) {
+      // 替换HTML字符串中的 for= 为 htmlFor= (防止React警告)
+      // 这样可以确保用户在编辑器中输入的HTML不会触发React警告
+      const sanitizedValue = value.replace(/\sfor=/g, ' htmlFor=');
+      handleInputChange('content', sanitizedValue);
+    } else {
+      handleInputChange('content', '');
+    }
   }, []);
 
   // 格式化HTML代码
@@ -214,10 +221,23 @@ export default function ContentEditPage() {
 
     setUploading(true);
     try {
+      // 获取当前编辑上下文
+      const chapterId = searchParams.get('chapterId');
+      const sectionId = searchParams.get('sectionId');
+      
       // 创建FormData
       const uploadFormData = new FormData();
       uploadFormData.append('file', file);
-      uploadFormData.append('alt', file.name);
+      uploadFormData.append('altText', file.name);
+      
+      // 添加上下文关联信息
+      if (sectionId) {
+        uploadFormData.append('sectionId', sectionId);
+        uploadFormData.append('usage', 'content'); // 段落内容图片
+      } else if (chapterId) {
+        uploadFormData.append('chapterId', chapterId);
+        uploadFormData.append('usage', 'content'); // 章节内容图片
+      }
       
       // 调用上传API
       const response = await fetch('/api/images/upload', {
@@ -227,7 +247,7 @@ export default function ContentEditPage() {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || '上传失败');
+        throw new Error(errorData.error?.message || errorData.message || '上传失败');
       }
 
       const result = await response.json();
@@ -308,7 +328,7 @@ export default function ContentEditPage() {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || '保存失败');
+        throw new Error(errorData.error?.message || errorData.message || '保存失败');
       }
 
       const result = await response.json();
@@ -404,7 +424,7 @@ export default function ContentEditPage() {
                 value={formData.paymentType || 'FREE'} 
                 onValueChange={(value) => handleInputChange('paymentType', value)}
               >
-                <SelectTrigger>
+                <SelectTrigger id="paymentType">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -583,6 +603,9 @@ export default function ContentEditPage() {
                </Button>
                
                <ImageSelector
+                 chapterId={searchParams.get('chapterId') || undefined}
+                 sectionId={searchParams.get('sectionId') || undefined}
+                 defaultUsage="content"
                  onImageSelect={(image) => {
                    if (editorRef.current) {
                      const editor = editorRef.current;
@@ -710,7 +733,7 @@ export default function ContentEditPage() {
                    className="bg-white overflow-auto p-4"
                    style={{ height: 'calc(100% - 40px)' }}
                    dangerouslySetInnerHTML={{ 
-                     __html: formData.content || '<p style="padding: 20px; color: #999; text-align: center;">暂无内容</p>' 
+                     __html: (formData.content || '<p style="padding: 20px; color: #999; text-align: center;">暂无内容</p>').replace(/\sfor=/g, ' htmlFor=')
                    }}
                  />
                </div>

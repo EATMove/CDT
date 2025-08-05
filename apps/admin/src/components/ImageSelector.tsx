@@ -33,32 +33,84 @@ interface ImageData {
 interface ImageSelectorProps {
   onImageSelect: (image: ImageData) => void;
   trigger?: React.ReactNode;
+  chapterId?: string;
+  sectionId?: string;
+  defaultUsage?: string;
 }
 
-export default function ImageSelector({ onImageSelect, trigger }: ImageSelectorProps) {
+export default function ImageSelector({ onImageSelect, trigger, chapterId, sectionId, defaultUsage }: ImageSelectorProps) {
   const [images, setImages] = useState<ImageData[]>([]);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterUsage, setFilterUsage] = useState<string>('all');
+  const [filterUsage, setFilterUsage] = useState<string>(defaultUsage || 'all');
   const [isOpen, setIsOpen] = useState(false);
   
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  // 当上下文变化时重新加载图片
+  useEffect(() => {
+    if (isOpen) {
+      loadImages();
+    }
+  }, [chapterId, sectionId, isOpen]);
 
   // 加载图片列表
   const loadImages = async () => {
     setLoading(true);
     try {
-      const response = await fetch('/api/images');
-      if (response.ok) {
-        const result = await response.json();
-        if (result.success) {
-          setImages(result.data.data || []);
+      // 构建查询参数
+      const params = new URLSearchParams();
+      
+      // 优先使用上下文API获取相关图片
+      if (chapterId || sectionId) {
+        if (sectionId) {
+          params.append('sectionId', sectionId);
+        } else if (chapterId) {
+          params.append('chapterId', chapterId);
+        }
+        
+        // 包含最近上传的图片
+        params.append('includeRecent', 'true');
+        
+        const response = await fetch(`/api/images/context?${params}`);
+        if (response.ok) {
+          const result = await response.json();
+          if (result.success) {
+            // 合并上下文图片、最近图片和建议图片
+            const allImages = [
+              ...(result.data.contextImages || []),
+              ...(result.data.recentImages || []),
+              ...(result.data.suggestions || [])
+            ];
+            
+            // 去重（基于id）
+            const uniqueImages = allImages.filter((image, index, array) => 
+              array.findIndex(img => img.id === image.id) === index
+            );
+            
+            setImages(uniqueImages);
+          } else {
+            toast.error(result.message || '加载图片列表失败');
+          }
         } else {
-          toast.error(result.message || '加载图片列表失败');
+          toast.error('加载图片列表失败');
         }
       } else {
-        toast.error('加载图片列表失败');
+        // 没有上下文时，使用普通图片列表API
+        params.append('contextOnly', 'false');
+        
+        const response = await fetch(`/api/images?${params}`);
+        if (response.ok) {
+          const result = await response.json();
+          if (result.success) {
+            setImages(result.data.data || []);
+          } else {
+            toast.error(result.message || '加载图片列表失败');
+          }
+        } else {
+          toast.error('加载图片列表失败');
+        }
       }
     } catch (error) {
       toast.error('加载图片列表失败');
@@ -81,7 +133,16 @@ export default function ImageSelector({ onImageSelect, trigger }: ImageSelectorP
       try {
         const formData = new FormData();
         formData.append('file', file);
-        formData.append('alt', file.name);
+        formData.append('altText', file.name);
+        
+        // 添加上下文关联信息
+        if (sectionId) {
+          formData.append('sectionId', sectionId);
+          formData.append('usage', defaultUsage || 'content');
+        } else if (chapterId) {
+          formData.append('chapterId', chapterId);
+          formData.append('usage', defaultUsage || 'content');
+        }
 
         const response = await fetch('/api/images/upload', {
           method: 'POST',
@@ -166,7 +227,14 @@ export default function ImageSelector({ onImageSelect, trigger }: ImageSelectorP
       </DialogTrigger>
       <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden">
         <DialogHeader>
-          <DialogTitle>选择图片</DialogTitle>
+          <div className="flex items-center justify-between">
+            <DialogTitle>选择图片</DialogTitle>
+            {(chapterId || sectionId) && (
+              <div className="text-sm text-slate-600 bg-blue-50 px-2 py-1 rounded">
+                📁 {sectionId ? `段落内容` : `章节内容`}
+              </div>
+            )}
+          </div>
         </DialogHeader>
         
         <div className="flex flex-col h-full">

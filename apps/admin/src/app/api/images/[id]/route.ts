@@ -17,7 +17,7 @@ export const GET = withErrorHandling(async (
   request: NextRequest,
   { params }: RouteParams
 ) => {
-  const { id } = params;
+  const { id } = await params;
 
   if (!id) {
     return createErrorResponse(
@@ -51,7 +51,7 @@ export const PUT = withErrorHandling(async (
   request: NextRequest,
   { params }: RouteParams
 ) => {
-  const { id } = params;
+  const { id } = await params;
   const data = await request.json();
 
   if (!id) {
@@ -100,10 +100,10 @@ export const PUT = withErrorHandling(async (
 
   // 删除图片
   export const DELETE = withErrorHandling(async (
-    request: NextRequest,
-    { params }: RouteParams
-  ) => {
-    const { id } = params;
+  request: NextRequest,
+  { params }: RouteParams
+) => {
+  const { id } = await params;
 
     if (!id) {
       return createErrorResponse(

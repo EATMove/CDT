@@ -1,4 +1,4 @@
-import { pgTable, varchar, timestamp, text, boolean, integer, pgEnum, json } from 'drizzle-orm/pg-core';
+import { pgTable, varchar, timestamp, text, boolean, integer, pgEnum, json, index } from 'drizzle-orm/pg-core';
 import { createInsertSchema, createSelectSchema } from 'drizzle-zod';
 import { users, provinceEnum } from './users';
 
@@ -78,13 +78,19 @@ export const handbookSections = pgTable('handbook_sections', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
-// 图片资源表 - 新增，专门管理handbook中的图片
+// 图片用途枚举
+export const imageUsageEnum = pgEnum('image_usage', ['content', 'cover', 'diagram', 'illustration']);
+
+// 图片资源表 - 专门管理handbook中的图片
+// 每张图片必须关联到章节或段落中的一个（不能同时关联两者）
 export const handbookImages = pgTable('handbook_images', {
   id: varchar('id', { length: 36 }).primaryKey(),
+  
+  // 关联关系 - 必须二选一
   chapterId: varchar('chapter_id', { length: 36 }).references(() => handbookChapters.id, { onDelete: 'cascade' }),
   sectionId: varchar('section_id', { length: 36 }).references(() => handbookSections.id, { onDelete: 'cascade' }),
   
-  // 图片信息
+  // 图片文件信息
   filename: varchar('filename', { length: 255 }).notNull(),
   originalName: varchar('original_name', { length: 255 }).notNull(),
   fileUrl: varchar('file_url', { length: 500 }).notNull(),
@@ -98,14 +104,22 @@ export const handbookImages = pgTable('handbook_images', {
   caption: text('caption'),
   captionEn: text('caption_en'),
   
-  // 图片用途
-  usage: varchar('usage', { length: 50 }).notNull().default('content'), // 'content', 'cover', 'diagram', 'illustration'
-  order: integer('order').default(0),
+  // 图片用途和位置
+  usage: imageUsageEnum('usage').notNull().default('content'),
+  order: integer('order').notNull().default(0), // 在所属章节或段落中的排序
   
   // 上传信息
   uploadedBy: varchar('uploaded_by', { length: 36 }).references(() => users.id, { onDelete: 'set null' }),
   createdAt: timestamp('created_at').defaultNow().notNull(),
-});
+}, (table) => ({
+  // 复合索引优化查询性能
+  chapterUsageIdx: index('idx_handbook_images_chapter_usage').on(table.chapterId, table.usage),
+  sectionUsageIdx: index('idx_handbook_images_section_usage').on(table.sectionId, table.usage),
+  chapterOrderIdx: index('idx_handbook_images_chapter_order').on(table.chapterId, table.order),
+  sectionOrderIdx: index('idx_handbook_images_section_order').on(table.sectionId, table.order),
+  createdAtIdx: index('idx_handbook_images_created_at').on(table.createdAt),
+  uploadedByIdx: index('idx_handbook_images_uploaded_by').on(table.uploadedBy),
+}));
 
 // 内容版本控制表 - 新增，支持内容历史和回滚
 export const handbookContentVersions = pgTable('handbook_content_versions', {

@@ -16,7 +16,7 @@ export const GET = withErrorHandling(async (
   request: NextRequest,
   { params }: RouteParams
 ) => {
-    const { id } = params;
+    const { id } = await params;
 
     if (!id) {
     return createErrorResponse(

@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { getDb } from '@/lib/database';
 import { handbookImages } from 'database';
-import { eq, like, desc, asc, inArray, and } from 'drizzle-orm';
+import { eq, like, desc, asc, inArray, and, or, isNull, isNotNull } from 'drizzle-orm';
 import { createSuccessResponse, createErrorResponse, withErrorHandling } from '@/lib/utils';
 import { ApiErrorCode } from 'shared';
 import { deleteImages } from '@/lib/image-utils';
@@ -17,6 +17,7 @@ export const GET = withErrorHandling(async (request: NextRequest) => {
   const sectionId = searchParams.get('sectionId');
   const orderBy = searchParams.get('orderBy') || 'createdAt';
   const order = searchParams.get('order') || 'desc';
+  const contextOnly = searchParams.get('contextOnly') === 'true'; // 新增：只返回有上下文的图片
 
   const offset = (page - 1) * limit;
   const db = getDb();
@@ -31,15 +32,43 @@ export const GET = withErrorHandling(async (request: NextRequest) => {
   }
 
   if (usage) {
-    whereConditions.push(eq(handbookImages.usage, usage as any));
+    whereConditions.push(eq(handbookImages.usage, usage as 'content' | 'cover' | 'diagram' | 'illustration'));
   }
 
-  if (chapterId) {
-    whereConditions.push(eq(handbookImages.chapterId, chapterId));
-  }
-
-  if (sectionId) {
+  // 优化：支持更智能的上下文筛选
+  if (chapterId && sectionId) {
+    // 如果同时提供章节和段落，优先按段落筛选
     whereConditions.push(eq(handbookImages.sectionId, sectionId));
+  } else if (chapterId) {
+    // 如果只提供章节，可以选择是否包含其下的段落图片
+    const includeSubSections = searchParams.get('includeSubSections') === 'true';
+    if (includeSubSections) {
+      // 包含章节直属图片和其下段落的图片
+      whereConditions.push(
+        and(
+          eq(handbookImages.chapterId, chapterId),
+          // 这里可以通过join来包含段落图片，但为了简化先只查章节直属图片
+        )
+      );
+    } else {
+      // 只查章节直属图片（不属于任何段落的图片）
+      whereConditions.push(
+        and(
+          eq(handbookImages.chapterId, chapterId),
+          isNull(handbookImages.sectionId)
+        )
+      );
+    }
+  } else if (sectionId) {
+    whereConditions.push(eq(handbookImages.sectionId, sectionId));
+  } else if (contextOnly) {
+    // 只返回有上下文关联的图片（排除孤儿图片）
+    whereConditions.push(
+      or(
+        isNotNull(handbookImages.chapterId),
+        isNotNull(handbookImages.sectionId)
+      )
+    );
   }
 
   // 构建排序

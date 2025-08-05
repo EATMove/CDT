@@ -45,13 +45,8 @@ export const POST = withErrorHandling(async (request: NextRequest) => {
   }
 
   // 章节和段落ID是可选的，用于关联图片
-  // if (!chapterId && !sectionId) {
-  //   return createErrorResponse(
-  //     ApiErrorCode.VALIDATION_ERROR,
-  //     'Image must be associated with a chapter or section',
-  //     400
-  //   );
-  // }
+  // 但由于数据库约束，如果都没有提供，我们需要允许创建孤儿图片
+  // 注意：这需要临时移除数据库约束或者提供默认值
 
   try {
     // 生成唯一文件名
@@ -84,24 +79,31 @@ export const POST = withErrorHandling(async (request: NextRequest) => {
     const order = existingImages.length;
 
     // 保存图片信息到数据库
+    // 如果没有提供上下文关联，创建为孤儿图片（稍后可以通过其他API关联）
+    const insertData: any = {
+      id: imageId,
+      filename: fileName,
+      originalName: file.name,
+      fileUrl: blob.url,
+      fileSize: file.size,
+      mimeType: file.type,
+      altText: altText || null,
+      caption: caption || null,
+      captionEn: captionEn || null,
+      usage: usage as 'content' | 'cover' | 'diagram' | 'illustration',
+      order,
+      // uploadedBy: user.id, // TODO: 从认证中获取
+    };
+
+    // 只有在提供了上下文时才添加关联字段
+    if (chapterId || sectionId) {
+      insertData.chapterId = chapterId || null;
+      insertData.sectionId = sectionId || null;
+    }
+
     const newImage = await db
       .insert(handbookImages)
-      .values({
-        id: imageId,
-        chapterId: chapterId || null,
-        sectionId: sectionId || null,
-        filename: fileName,
-        originalName: file.name,
-        fileUrl: blob.url,
-        fileSize: file.size,
-        mimeType: file.type,
-        altText: altText || null,
-        caption: caption || null,
-        captionEn: captionEn || null,
-        usage: usage as any,
-        order,
-        // uploadedBy: user.id, // TODO: 从认证中获取
-      })
+      .values(insertData)
       .returning();
 
     return createSuccessResponse({

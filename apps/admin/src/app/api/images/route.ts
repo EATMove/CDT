@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { getDb } from '@/lib/database';
 import { handbookImages } from 'database';
-import { eq, like, desc, asc, inArray } from 'drizzle-orm';
+import { eq, like, desc, asc, inArray, and } from 'drizzle-orm';
 import { createSuccessResponse, createErrorResponse, withErrorHandling } from '@/lib/utils';
 import { ApiErrorCode } from 'shared';
 import { deleteImages } from '@/lib/image-utils';
@@ -57,15 +57,24 @@ export const GET = withErrorHandling(async (request: NextRequest) => {
   }
 
   // 执行查询
-  const images = await db
-    .select()
-    .from(handbookImages)
+  let query = db.select().from(handbookImages);
+  let countQuery = db.select({ id: handbookImages.id }).from(handbookImages);
+  
+  // 应用where条件
+  if (whereConditions.length > 0) {
+    const whereClause = whereConditions.length === 1 ? whereConditions[0] : and(...whereConditions);
+    query = query.where(whereClause) as any;
+    countQuery = countQuery.where(whereClause) as any;
+  }
+
+  // 应用排序和分页
+  const images = await query
     .orderBy(orderByClause)
     .limit(limit)
     .offset(offset);
 
   // 获取总数
-  const allImages = await db.select({ id: handbookImages.id }).from(handbookImages);
+  const allImages = await countQuery;
   const total = allImages.length;
 
   return createSuccessResponse({

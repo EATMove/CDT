@@ -287,7 +287,7 @@ export default function ChaptersPage() {
                           variant="outline"
                           asChild
                         >
-                          <Link href={`/content/edit?chapterId=${chapter.id}`}>
+                          <Link href={`/chapters/${chapter.id}/edit`}>
                             <Edit className="w-4 h-4 mr-1" />
                             编辑
                           </Link>
@@ -314,13 +314,18 @@ export default function ChaptersPage() {
         <Card>
           <CardContent className="text-center py-12">
             <p className="text-slate-600">暂无章节</p>
-            <Button 
-              className="mt-4" 
-              onClick={() => setShowCreateForm(true)}
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              创建第一个章节
-            </Button>
+                                <div className="flex gap-2 mt-4">
+                      <Button onClick={() => setShowCreateForm(true)}>
+                        <Plus className="w-4 h-4 mr-2" />
+                        创建第一个章节
+                      </Button>
+                      <Button variant="outline" asChild>
+                        <Link href="/">
+                          <ArrowLeft className="w-4 h-4 mr-2" />
+                          返回首页
+                        </Link>
+                      </Button>
+                    </div>
           </CardContent>
         </Card>
       )}

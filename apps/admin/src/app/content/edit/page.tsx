@@ -1,13 +1,14 @@
 'use client';
 
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { Upload, Eye, Save, Image as ImageIcon, Smartphone, Tablet, Monitor, Copy, Code2, Palette } from 'lucide-react';
+import { Upload, Eye, Save, Image as ImageIcon, Smartphone, Tablet, Monitor, Copy, Code2, Palette, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import ImageSelector from '@/components/ImageSelector';
 
@@ -43,6 +44,8 @@ interface ImageUploadResult {
 }
 
 export default function ContentEditPage() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [formData, setFormData] = useState<Partial<ContentData>>({
     title: '',
     content: `<div style="padding: 20px; font-family: -apple-system, BlinkMacSystemFont, sans-serif; line-height: 1.6; color: #333;">
@@ -68,6 +71,8 @@ export default function ContentEditPage() {
   const [previewDevice, setPreviewDevice] = useState<'mobile' | 'tablet' | 'desktop'>('mobile');
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [sections, setSections] = useState<any[]>([]);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const editorRef = useRef<any>(null);
@@ -75,6 +80,74 @@ export default function ContentEditPage() {
   const handleInputChange = (field: keyof ContentData, value: any) => {
     setFormData((prev: Partial<ContentData>) => ({ ...prev, [field]: value }));
   };
+
+  // 加载章节信息和段落列表
+  const loadChapterData = useCallback(async () => {
+    const chapterId = searchParams.get('chapterId');
+    const sectionId = searchParams.get('sectionId');
+    
+    if (!chapterId) {
+      toast.error('缺少章节ID参数');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // 加载章节信息
+      const chapterResponse = await fetch(`/api/chapters/${chapterId}`);
+      if (chapterResponse.ok) {
+        const chapterResult = await chapterResponse.json();
+        if (chapterResult.success) {
+          const chapter = chapterResult.data;
+          setFormData(prev => ({
+            ...prev,
+            chapterId: chapter.id,
+            title: chapter.title || '',
+            titleEn: chapter.titleEn || '',
+          }));
+        }
+      }
+
+      // 加载段落列表
+      const sectionsResponse = await fetch(`/api/content/save?chapterId=${chapterId}`);
+      if (sectionsResponse.ok) {
+        const sectionsResult = await sectionsResponse.json();
+        if (sectionsResult.success) {
+          setSections(sectionsResult.data.data || []);
+        }
+      }
+
+      // 如果指定了sectionId，加载段落内容
+      if (sectionId) {
+        const sectionResponse = await fetch(`/api/chapters/${chapterId}/sections/${sectionId}`);
+        if (sectionResponse.ok) {
+          const sectionResult = await sectionResponse.json();
+          if (sectionResult.success) {
+            const section = sectionResult.data;
+            setFormData(prev => ({
+              ...prev,
+              sectionId: section.id,
+              title: section.title || '',
+              titleEn: section.titleEn || '',
+              content: section.content || '',
+              contentEn: section.contentEn || '',
+              paymentType: section.isFree ? 'FREE' : 'MEMBER_ONLY',
+            }));
+          }
+        }
+      }
+    } catch (error) {
+      console.error('加载数据失败:', error);
+      toast.error('加载数据失败');
+    } finally {
+      setLoading(false);
+    }
+  }, [searchParams]);
+
+  // 页面加载时获取数据
+  useEffect(() => {
+    loadChapterData();
+  }, [loadChapterData]);
 
   // Monaco编辑器配置
   const editorOptions = {
@@ -241,8 +314,15 @@ export default function ContentEditPage() {
       const result = await response.json();
       toast.success(`保存成功！内容ID: ${result.id}`);
       
-      // 可以在这里更新URL或重定向
-      console.log('保存成功，内容ID:', result.id);
+      // 如果是新段落，更新URL参数
+      if (!formData.sectionId && result.id) {
+        const newUrl = `/content/edit?chapterId=${formData.chapterId}&sectionId=${result.id}`;
+        window.history.replaceState({}, '', newUrl);
+        setFormData(prev => ({ ...prev, sectionId: result.id }));
+      }
+      
+      // 重新加载段落列表
+      loadChapterData();
       
     } catch (error) {
       console.error('保存失败:', error);
@@ -276,34 +356,46 @@ export default function ContentEditPage() {
 </div>`
   };
 
+  if (loading) {
+    return (
+      <div className="container mx-auto p-6 max-w-7xl">
+        <div className="text-center py-12">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-2 text-slate-600">加载中...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="container mx-auto p-6 max-w-7xl">
       {/* 顶部基本信息 */}
       <Card className="mb-6">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            📝 内容编辑器
+            📝 段落编辑器
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           {/* 基本信息 */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <Label htmlFor="title">标题 *</Label>
+              <Label htmlFor="title">段落标题 *</Label>
               <Input
                 id="title"
                 value={formData.title || ''}
                 onChange={(e) => handleInputChange('title', e.target.value)}
-                placeholder="请输入章节标题"
+                placeholder="请输入段落标题"
               />
             </div>
             <div>
-              <Label htmlFor="chapterId">章节ID *</Label>
+              <Label htmlFor="chapterId">所属章节 *</Label>
               <Input
                 id="chapterId"
                 value={formData.chapterId || ''}
                 onChange={(e) => handleInputChange('chapterId', e.target.value)}
-                placeholder="例如：ch-001"
+                placeholder="章节ID"
+                disabled
               />
             </div>
             <div>
@@ -336,18 +428,123 @@ export default function ContentEditPage() {
             <Label htmlFor="isPublished">立即发布</Label>
           </div>
 
+          {/* 段落列表 */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <Label className="text-sm font-medium">段落列表</Label>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  setFormData(prev => ({
+                    ...prev,
+                    sectionId: undefined,
+                    title: '',
+                    titleEn: '',
+                    content: `<div style="padding: 20px; font-family: -apple-system, BlinkMacSystemFont, sans-serif; line-height: 1.6; color: #333;">
+  <h2 style="color: #2c3e50; margin-bottom: 20px; font-size: 24px;">新段落标题</h2>
+  
+  <p style="margin-bottom: 16px; color: #555;">
+    请在这里编写内容...
+  </p>
+</div>`,
+                    contentEn: '',
+                    paymentType: 'FREE',
+                  }));
+                }}
+              >
+                <Plus className="w-3 h-3 mr-1" />
+                新建段落
+              </Button>
+            </div>
+            <div className="space-y-2 max-h-40 overflow-y-auto">
+                {sections.length === 0 ? (
+                  <div className="text-center py-4 text-slate-500 text-sm">
+                    暂无段落，点击上方"新建段落"开始创建
+                  </div>
+                ) : (
+                  sections.map((section) => (
+                    <div
+                      key={section.id}
+                      className={`p-2 border rounded cursor-pointer hover:bg-slate-50 transition-colors ${
+                        formData.sectionId === section.id ? 'bg-blue-50 border-blue-200' : 'border-slate-200'
+                      }`}
+                      onClick={() => {
+                        // 如果当前有未保存的更改，提示用户
+                        if (formData.sectionId && formData.sectionId !== section.id) {
+                          const hasChanges = formData.title !== section.title || formData.content !== section.content;
+                          if (hasChanges && !confirm('当前有未保存的更改，确定要切换段落吗？')) {
+                            return;
+                          }
+                        }
+                        
+                        setFormData(prev => ({
+                          ...prev,
+                          sectionId: section.id,
+                          title: section.title || '',
+                          titleEn: section.titleEn || '',
+                          content: section.content || '',
+                          contentEn: section.contentEn || '',
+                          paymentType: section.isFree ? 'FREE' : 'MEMBER_ONLY',
+                        }));
+                        
+                        // 更新URL
+                        const newUrl = `/content/edit?chapterId=${formData.chapterId}&sectionId=${section.id}`;
+                        window.history.replaceState({}, '', newUrl);
+                      }}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <div className="font-medium text-sm">{section.title || '无标题'}</div>
+                          <div className="text-xs text-slate-500">
+                            第 {section.order} 段 • {section.wordCount || 0} 字 • {section.estimatedReadTime || 0} 分钟
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="text-xs">
+                            {section.isFree ? '🆓' : '💎'}
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-6 w-6 p-0"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              window.open(`/content/${section.id}`, '_blank');
+                            }}
+                            title="在新窗口查看"
+                          >
+                            <Eye className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
           {/* 操作按钮 */}
           <div className="flex justify-between items-center pt-4">
             <div className="text-sm text-slate-500">
               💡 提示：Ctrl+S保存，Ctrl+Shift+F格式化代码
             </div>
             <div className="flex gap-2">
-              <Button variant="outline" onClick={() => window.history.back()}>
-                取消
+              <Button 
+                variant="outline" 
+                onClick={() => router.push(`/chapters/${formData.chapterId}`)}
+              >
+                查看章节
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={() => router.push(`/chapters/${formData.chapterId}/edit`)}
+              >
+                编辑章节
               </Button>
               <Button onClick={handleSave} disabled={saving}>
                 <Save className="w-4 h-4 mr-1" />
-                {saving ? '保存中...' : '保存内容'}
+                {saving ? '保存中...' : '保存段落'}
               </Button>
             </div>
           </div>

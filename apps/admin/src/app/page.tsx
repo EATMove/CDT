@@ -124,11 +124,18 @@ export default function HomePage() {
                     <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
                       {chapter.status}
                     </span>
-                    <Button size="sm" variant="outline" asChild>
-                      <Link href={`/content/edit?chapterId=${chapter.id}`}>
-                        编辑
-                      </Link>
-                    </Button>
+                    <div className="flex gap-1">
+                      <Button size="sm" variant="outline" asChild>
+                        <Link href={`/chapters/${chapter.id}`}>
+                          查看
+                        </Link>
+                      </Button>
+                      <Button size="sm" variant="outline" asChild>
+                        <Link href={`/content/edit?chapterId=${chapter.id}`}>
+                          编辑
+                        </Link>
+                      </Button>
+                    </div>
                   </div>
                 </div>
               ))}

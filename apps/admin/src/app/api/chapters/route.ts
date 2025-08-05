@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { getDb } from '@/lib/database';
 import { handbookChapters } from 'database';
-import { eq, desc, asc } from 'drizzle-orm';
+import { eq, desc, asc, and } from 'drizzle-orm';
 import { createSuccessResponse, createErrorResponse, withErrorHandling, validateRequiredFields, generateId } from '@/lib/utils';
 import { ApiErrorCode, CreateChapterSchema } from 'shared';
 
@@ -83,31 +83,21 @@ export const GET = withErrorHandling(async (request: NextRequest) => {
   }
 
   // 执行查询
-  let query = db
-    .select()
-    .from(handbookChapters)
+  let query = db.select().from(handbookChapters);
+  let countQuery = db.select({ id: handbookChapters.id }).from(handbookChapters);
+  
+  // 应用where条件
+  if (whereConditions.length > 0) {
+    const whereClause = whereConditions.length === 1 ? whereConditions[0] : and(...whereConditions);
+    query = query.where(whereClause) as any;
+    countQuery = countQuery.where(whereClause) as any;
+  }
+
+  // 应用排序和分页
+  const chapters = await query
     .orderBy(orderByClause)
     .limit(limit)
     .offset(offset);
-
-  if (whereConditions.length > 0) {
-    query = query.where(whereConditions[0]);
-    for (let i = 1; i < whereConditions.length; i++) {
-      query = query.where(whereConditions[i]);
-    }
-  }
-
-  const chapters = await query;
-
-  // 获取总数
-  let countQuery = db.select({ id: handbookChapters.id }).from(handbookChapters);
-  
-  if (whereConditions.length > 0) {
-    countQuery = countQuery.where(whereConditions[0]);
-    for (let i = 1; i < whereConditions.length; i++) {
-      countQuery = countQuery.where(whereConditions[i]);
-    }
-  }
   
   const allChapters = await countQuery;
   const total = allChapters.length;

@@ -10,7 +10,7 @@ export const GET = withErrorHandling(async (request: NextRequest) => {
   const { searchParams } = new URL(request.url);
   
   // 解析搜索参数
-  const query = searchParams.get('query') || '';
+  const searchQuery = searchParams.get('query') || '';
   const paymentType = searchParams.get('paymentType');
   const publishStatus = searchParams.get('publishStatus');
   const province = searchParams.get('province');
@@ -27,13 +27,13 @@ export const GET = withErrorHandling(async (request: NextRequest) => {
   let whereConditions = [];
 
   // 文本搜索
-  if (query) {
+  if (searchQuery) {
     whereConditions.push(
       or(
-        like(handbookChapters.title, `%${query}%`),
-        like(handbookChapters.titleEn, `%${query}%`),
-        like(handbookChapters.description, `%${query}%`),
-        like(handbookChapters.descriptionEn, `%${query}%`)
+        like(handbookChapters.title, `%${searchQuery}%`),
+        like(handbookChapters.titleEn, `%${searchQuery}%`),
+        like(handbookChapters.description, `%${searchQuery}%`),
+        like(handbookChapters.descriptionEn, `%${searchQuery}%`)
       )
     );
   }
@@ -75,32 +75,23 @@ export const GET = withErrorHandling(async (request: NextRequest) => {
   }
 
   // 执行查询
-  let query = db
-    .select()
-    .from(handbookChapters)
+  let dbQuery = db.select().from(handbookChapters);
+  let countQuery = db.select({ id: handbookChapters.id }).from(handbookChapters);
+  
+  // 应用where条件
+  if (whereConditions.length > 0) {
+    const whereClause = whereConditions.length === 1 ? whereConditions[0] : and(...whereConditions);
+    dbQuery = dbQuery.where(whereClause) as any;
+    countQuery = countQuery.where(whereClause) as any;
+  }
+
+  // 应用排序和分页
+  const chapters = await dbQuery
     .orderBy(orderByClause)
     .limit(limit)
     .offset(offset);
 
-  if (whereConditions.length > 0) {
-    query = query.where(whereConditions[0]);
-    for (let i = 1; i < whereConditions.length; i++) {
-      query = query.where(whereConditions[i]);
-    }
-  }
-
-  const chapters = await query;
-
   // 获取总数
-  let countQuery = db.select({ id: handbookChapters.id }).from(handbookChapters);
-  
-  if (whereConditions.length > 0) {
-    countQuery = countQuery.where(whereConditions[0]);
-    for (let i = 1; i < whereConditions.length; i++) {
-      countQuery = countQuery.where(whereConditions[i]);
-    }
-  }
-  
   const allChapters = await countQuery;
   const total = allChapters.length;
 
@@ -137,7 +128,7 @@ export const GET = withErrorHandling(async (request: NextRequest) => {
     },
     stats,
     searchParams: {
-      query,
+      query: searchQuery,
       paymentType,
       publishStatus,
       province,

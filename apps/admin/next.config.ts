@@ -10,11 +10,8 @@ const nextConfig: NextConfig = {
   },
   // 确保输出是独立的
   output: 'standalone',
-  // 实验性功能
-  experimental: {
-    // 启用服务器组件
-    serverComponentsExternalPackages: ['database'],
-  },
+  // 服务器外部包配置
+  serverExternalPackages: ['database'],
 };
 
 export default nextConfig;

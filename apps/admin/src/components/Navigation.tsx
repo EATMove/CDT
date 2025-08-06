@@ -31,7 +31,7 @@ export default function Navigation() {
     },
     {
       title: '内容编辑',
-      href: '/content',
+      href: '/content/edit',
       icon: Plus,
     },
     {

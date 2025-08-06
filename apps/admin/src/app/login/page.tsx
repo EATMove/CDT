@@ -32,9 +32,10 @@ export default function LoginPage() {
       });
 
       if (response.ok) {
-        // 登录成功，重定向到首页
-        router.push('/');
-        router.refresh();
+        // 登录成功，等待一下让session设置完成
+        setTimeout(() => {
+          router.push('/');
+        }, 100);
       } else {
         const data = await response.json();
         setError(data.error?.message || '登录失败');

@@ -57,7 +57,8 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
       });
 
       if (response.ok) {
-        setUser({ username, role: 'admin' });
+        // 登录成功后重新检查认证状态
+        await checkAuth();
         return true;
       }
       return false;

@@ -19,7 +19,7 @@ function getAdminCredentials() {
 /**
  * 生成简单的session token
  */
-function generateSessionToken(username: string): string {
+export function generateSessionToken(username: string): string {
   const secret = process.env.SESSION_SECRET || 'your-session-secret';
   const timestamp = Date.now().toString();
   const hash = crypto.createHmac('sha256', secret)
@@ -79,8 +79,10 @@ export async function createAdminSession(username: string): Promise<string> {
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
     maxAge: 24 * 60 * 60, // 24小时
+    path: '/', // 确保路径正确
   });
   
+  console.log('Cookie set with token:', token); // 添加调试信息
   return token;
 }
 

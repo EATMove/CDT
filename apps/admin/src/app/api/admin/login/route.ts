@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { loginAdmin, createAdminSession, isAdminLoggedIn } from '@/lib/admin-auth';
+import { loginAdmin, generateSessionToken, isAdminLoggedIn } from '@/lib/admin-auth';
 
 export async function POST(request: NextRequest) {
   try {
@@ -36,13 +36,27 @@ export async function POST(request: NextRequest) {
       }, { status: 401 });
     }
 
-    // 创建session
-    await createAdminSession(username);
+    // 生成session token
+    const token = generateSessionToken(username);
+    console.log('Session token created:', token); // 添加调试信息
 
-    return NextResponse.json({
+    // 创建响应并设置Cookie
+    const response = NextResponse.json({
       success: true,
       message: '登录成功',
     });
+
+    // 设置Cookie
+    response.cookies.set('admin_session', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 24 * 60 * 60, // 24小时
+      path: '/',
+    });
+
+    console.log('Cookie set in response'); // 添加调试信息
+    return response;
 
   } catch (error) {
     console.error('登录错误:', error);

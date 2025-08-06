@@ -29,6 +29,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
       
       if (response.ok) {
         const data = await response.json();
+        console.log('认证检查响应:', data); // 添加调试信息
         if (data.isLoggedIn) {
           // 这里可以获取用户信息，简化起见我们假设已登录就是admin
           setUser({ username: 'admin', role: 'admin' });
@@ -36,6 +37,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
           setUser(null);
         }
       } else {
+        console.log('认证检查失败:', response.status); // 添加调试信息
         setUser(null);
       }
     } catch (error) {
@@ -56,7 +58,11 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
         body: JSON.stringify({ username, password }),
       });
 
+      console.log('登录响应状态:', response.status); // 添加调试信息
+      
       if (response.ok) {
+        const data = await response.json();
+        console.log('登录响应数据:', data); // 添加调试信息
         // 登录成功后重新检查认证状态
         await checkAuth();
         return true;

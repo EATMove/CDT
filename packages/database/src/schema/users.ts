@@ -4,7 +4,7 @@ import { createInsertSchema, createSelectSchema } from 'drizzle-zod';
 // 枚举定义
 export const provinceEnum = pgEnum('province', ['AB', 'BC', 'ON']);
 export const userTypeEnum = pgEnum('user_type', ['FREE', 'MEMBER', 'TRIAL']);
-export const loginMethodEnum = pgEnum('login_method', ['EMAIL', 'PHONE', 'GOOGLE']);
+export const loginMethodEnum = pgEnum('login_method', ['EMAIL', 'PHONE', 'GOOGLE', 'APPLE']);
 
 // 用户表
 export const users = pgTable('users', {
@@ -13,7 +13,8 @@ export const users = pgTable('users', {
   email: varchar('email', { length: 255 }).unique(),
   phone: varchar('phone', { length: 20 }).unique(),
   googleId: varchar('google_id', { length: 100 }).unique(),
-  passwordHash: text('password_hash'), // 邮箱/手机登录需要密码，Google登录不需要
+  appleId: varchar('apple_id', { length: 100 }).unique(),
+  passwordHash: text('password_hash'), // 邮箱/手机登录需要密码，Google/Apple登录不需要
   primaryLoginMethod: loginMethodEnum('primary_login_method').notNull(), // 用户主要使用的登录方式
   province: provinceEnum('province').notNull(),
   userType: userTypeEnum('user_type').notNull().default('FREE'),
@@ -23,6 +24,7 @@ export const users = pgTable('users', {
   emailVerified: boolean('email_verified').default(false),
   phoneVerified: boolean('phone_verified').default(false),
   googleVerified: boolean('google_verified').default(false), // Google账号验证状态
+  appleVerified: boolean('apple_verified').default(false), // Apple账号验证状态
   isActive: boolean('is_active').default(true),
   lastLoginAt: timestamp('last_login_at'),
   lastLoginMethod: loginMethodEnum('last_login_method'), // 最后一次使用的登录方式

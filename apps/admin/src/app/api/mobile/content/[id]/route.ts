@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { getDb } from '@/lib/database';
-import { handbookChapters, handbookSections } from 'database';
-import { eq } from 'drizzle-orm';
+import { handbookChapters, handbookSections, handbookImages } from 'database';
+import { eq, and, or, isNull, desc, inArray } from 'drizzle-orm';
 import { createSuccessResponse, createErrorResponse, withErrorHandling } from '@/lib/utils';
 import { ApiErrorCode } from 'shared';
 
@@ -75,6 +75,35 @@ export const GET = withErrorHandling(async (
     .where(eq(handbookSections.chapterId, id))
     .orderBy(handbookSections.order);
 
+  // 获取章节相关图片
+  const sectionIds = sections.map(s => s.id);
+  const chapterImages = await db
+    .select({
+      id: handbookImages.id,
+      filename: handbookImages.filename,
+      originalName: handbookImages.originalName,
+      fileUrl: handbookImages.fileUrl,
+      width: handbookImages.width,
+      height: handbookImages.height,
+      altText: handbookImages.altText,
+      caption: handbookImages.caption,
+      captionEn: handbookImages.captionEn,
+      usage: handbookImages.usage,
+      order: handbookImages.order,
+      sectionId: handbookImages.sectionId,
+    })
+    .from(handbookImages)
+    .where(
+      or(
+        and(
+          eq(handbookImages.chapterId, id),
+          isNull(handbookImages.sectionId)
+        ),
+        ...(sectionIds.length > 0 ? [inArray(handbookImages.sectionId, sectionIds)] : [])
+      )
+    )
+    .orderBy(handbookImages.order, desc(handbookImages.createdAt));
+
   // 根据用户类型过滤段落内容
   const filteredSections = sections.map((section, index) => {
     // 检查段落访问权限
@@ -84,6 +113,25 @@ export const GET = withErrorHandling(async (
       chapterData.freePreviewSections || 0,
       index
     );
+
+    // 获取该段落的相关图片
+    const sectionImages = chapterImages
+      .filter(img => img.sectionId === section.id)
+      .map(img => ({
+        id: img.id,
+        filename: img.filename,
+        originalName: img.originalName,
+        fileUrl: img.fileUrl,
+        thumbnailUrl: `${img.fileUrl}?w=150&h=150&fit=crop&q=80`,
+        smallUrl: `${img.fileUrl}?w=300&h=300&fit=inside&q=85`,
+        mediumUrl: `${img.fileUrl}?w=600&h=600&fit=inside&q=90`,
+        width: img.width,
+        height: img.height,
+        altText: language === 'EN' && img.captionEn ? img.captionEn : (img.altText || img.caption),
+        caption: language === 'EN' && img.captionEn ? img.captionEn : img.caption,
+        usage: img.usage,
+        order: img.order,
+      }));
 
     if (!canAccessSection) {
       // 返回预览版本，隐藏完整内容
@@ -96,6 +144,7 @@ export const GET = withErrorHandling(async (
         content: getPreviewContent(section.content, language),
         wordCount: section.wordCount,
         estimatedReadTime: section.estimatedReadTime,
+        images: sectionImages.filter(img => img.usage === 'cover'), // 只显示封面图片
       };
     }
 
@@ -109,8 +158,28 @@ export const GET = withErrorHandling(async (
       content: language === 'EN' && section.contentEn ? section.contentEn : section.content,
       wordCount: section.wordCount,
       estimatedReadTime: section.estimatedReadTime,
+      images: sectionImages, // 显示所有相关图片
     };
   });
+
+  // 获取章节级别的图片（不属于特定段落）
+  const chapterLevelImages = chapterImages
+    .filter(img => !img.sectionId)
+    .map(img => ({
+      id: img.id,
+      filename: img.filename,
+      originalName: img.originalName,
+      fileUrl: img.fileUrl,
+      thumbnailUrl: `${img.fileUrl}?w=150&h=150&fit=crop&q=80`,
+      smallUrl: `${img.fileUrl}?w=300&h=300&fit=inside&q=85`,
+      mediumUrl: `${img.fileUrl}?w=600&h=600&fit=inside&q=90`,
+      width: img.width,
+      height: img.height,
+      altText: language === 'EN' && img.captionEn ? img.captionEn : (img.altText || img.caption),
+      caption: language === 'EN' && img.captionEn ? img.captionEn : img.caption,
+      usage: img.usage,
+      order: img.order,
+    }));
 
   // 构建响应数据
   const responseData = {
@@ -123,6 +192,7 @@ export const GET = withErrorHandling(async (
     coverImageAlt: chapterData.coverImageAlt,
     paymentType: chapterData.paymentType,
     sections: filteredSections,
+    images: chapterLevelImages, // 章节级别图片
     totalSections: sections.length,
     freeSections: sections.filter(s => s.isFree).length,
     unlockedSections: filteredSections.filter(s => !s.isLocked).length,

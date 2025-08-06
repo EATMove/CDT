@@ -1,87 +1,73 @@
 'use client';
 
-import React from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import { 
-  Home, 
   BookOpen, 
   Image, 
-  Edit3, 
   Users, 
-  Settings, 
-  Database,
-  BarChart3
+  BarChart3, 
+  Plus,
+  LogOut,
+  User
 } from 'lucide-react';
-
-const navigationItems = [
-  {
-    name: '仪表板',
-    href: '/',
-    icon: Home,
-  },
-  {
-    name: '章节管理',
-    href: '/chapters',
-    icon: BookOpen,
-  },
-  {
-    name: '内容编辑',
-    href: '/content/edit',
-    icon: Edit3,
-  },
-  {
-    name: '图片管理',
-    href: '/images',
-    icon: Image,
-  },
-  {
-    name: '用户管理',
-    href: '/users',
-    icon: Users,
-  },
-  {
-    name: '数据统计',
-    href: '/analytics',
-    icon: BarChart3,
-  },
-  {
-    name: '系统设置',
-    href: '/settings',
-    icon: Settings,
-  },
-  {
-    name: '数据库',
-    href: '/database',
-    icon: Database,
-  },
-];
+import { useAdminAuth } from './AdminAuthProvider';
+import { useRouter } from 'next/navigation';
 
 export default function Navigation() {
-  const pathname = usePathname();
+  const { user, logout } = useAdminAuth();
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    await logout();
+    router.push('/login');
+  };
+
+  const navItems = [
+    {
+      title: '章节管理',
+      href: '/chapters',
+      icon: BookOpen,
+    },
+    {
+      title: '内容编辑',
+      href: '/content',
+      icon: Plus,
+    },
+    {
+      title: '图片管理',
+      href: '/images',
+      icon: Image,
+    },
+  ];
 
   return (
-    <Card className="p-4">
-      <nav className="flex flex-wrap gap-2">
-        {navigationItems.map((item) => {
-          const isActive = pathname === item.href;
-          return (
-            <Button
-              key={item.name}
-              variant={isActive ? 'default' : 'ghost'}
-              size="sm"
-              asChild
-            >
-              <Link href={item.href}>
-                <item.icon className="w-4 h-4 mr-2" />
-                {item.name}
-              </Link>
-            </Button>
-          );
-        })}
-      </nav>
-    </Card>
+    <div className="flex items-center justify-between p-4 bg-white border-b rounded-lg shadow-sm">
+      {/* 左侧导航 */}
+      <div className="flex items-center space-x-4">
+        {navItems.map((item) => (
+          <Button key={item.href} variant="ghost" asChild>
+            <Link href={item.href} className="flex items-center space-x-2">
+              <item.icon className="w-4 h-4" />
+              <span>{item.title}</span>
+            </Link>
+          </Button>
+        ))}
+      </div>
+
+      {/* 右侧用户信息和登出 */}
+      <div className="flex items-center space-x-4">
+        {user && (
+          <div className="flex items-center space-x-2 text-sm text-gray-600">
+            <User className="w-4 h-4" />
+            <span>管理员: {user.username}</span>
+          </div>
+        )}
+        <Button variant="outline" onClick={handleLogout} className="flex items-center space-x-2">
+          <LogOut className="w-4 h-4" />
+          <span>登出</span>
+        </Button>
+      </div>
+    </div>
   );
 } 

@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { getDb } from '@/lib/database';
-import { quizQuestions, quizOptions, handbookChapters } from 'database';
+import { questions, questionOptions, handbookChapters } from 'database';
 import { eq, and, inArray, sql } from 'drizzle-orm';
 import { createSuccessResponse, createErrorResponse, withErrorHandling } from '@/lib/utils';
 import { ApiErrorCode } from 'shared';
@@ -25,7 +25,7 @@ export const GET = withErrorHandling(async (request: NextRequest) => {
   const db = getDb();
 
   try {
-    let questions;
+    let questionsList;
 
     if (type === 'simulation') {
       // 模拟考试：从所有已发布章节中随机抽取题目
@@ -45,23 +45,23 @@ export const GET = withErrorHandling(async (request: NextRequest) => {
       }
 
       // 随机选择30道题目（模拟考试标准）
-      questions = await db
+      questionsList = await db
         .select({
-          id: quizQuestions.id,
-          chapterId: quizQuestions.chapterId,
-          questionText: quizQuestions.questionText,
-          questionTextEn: quizQuestions.questionTextEn,
-          explanation: quizQuestions.explanation,
-          explanationEn: quizQuestions.explanationEn,
-          difficulty: quizQuestions.difficulty,
-          imageUrl: quizQuestions.imageUrl,
-          order: quizQuestions.order,
+          id: questions.id,
+          chapterId: questions.chapterId,
+          title: questions.title,
+          titleEn: questions.titleEn,
+          content: questions.content,
+          contentEn: questions.contentEn,
+          explanation: questions.explanation,
+          explanationEn: questions.explanationEn,
+          difficulty: questions.difficulty,
+          imageUrl: questions.imageUrl,
         })
-        .from(quizQuestions)
+        .from(questions)
         .where(
           and(
-            inArray(quizQuestions.chapterId, chapterIds),
-            eq(quizQuestions.isActive, true)
+            inArray(questions.chapterId, chapterIds)
           )
         )
         .orderBy(sql`RANDOM()`)
@@ -69,30 +69,25 @@ export const GET = withErrorHandling(async (request: NextRequest) => {
 
     } else {
       // 章节练习：获取指定章节的题目
-      questions = await db
+      questionsList = await db
         .select({
-          id: quizQuestions.id,
-          chapterId: quizQuestions.chapterId,
-          questionText: quizQuestions.questionText,
-          questionTextEn: quizQuestions.questionTextEn,
-          explanation: quizQuestions.explanation,
-          explanationEn: quizQuestions.explanationEn,
-          difficulty: quizQuestions.difficulty,
-          imageUrl: quizQuestions.imageUrl,
-          order: quizQuestions.order,
+          id: questions.id,
+          chapterId: questions.chapterId,
+          title: questions.title,
+          titleEn: questions.titleEn,
+          content: questions.content,
+          contentEn: questions.contentEn,
+          explanation: questions.explanation,
+          explanationEn: questions.explanationEn,
+          difficulty: questions.difficulty,
+          imageUrl: questions.imageUrl,
         })
-        .from(quizQuestions)
-        .where(
-          and(
-            eq(quizQuestions.chapterId, chapterId!),
-            eq(quizQuestions.isActive, true)
-          )
-        )
-        .orderBy(quizQuestions.order)
+        .from(questions)
+        .where(eq(questions.chapterId, chapterId!))
         .limit(limit);
     }
 
-    if (questions.length === 0) {
+    if (questionsList.length === 0) {
       return createSuccessResponse({
         questions: [],
         type,
@@ -101,27 +96,27 @@ export const GET = withErrorHandling(async (request: NextRequest) => {
     }
 
     // 获取题目选项
-    const questionIds = questions.map(q => q.id);
+    const questionIds = questionsList.map(q => q.id);
     const options = await db
       .select({
-        id: quizOptions.id,
-        questionId: quizOptions.questionId,
-        optionText: quizOptions.optionText,
-        optionTextEn: quizOptions.optionTextEn,
-        isCorrect: quizOptions.isCorrect,
-        order: quizOptions.order,
+        id: questionOptions.id,
+        questionId: questionOptions.questionId,
+        text: questionOptions.text,
+        textEn: questionOptions.textEn,
+        isCorrect: questionOptions.isCorrect,
+        order: questionOptions.order,
       })
-      .from(quizOptions)
-      .where(inArray(quizOptions.questionId, questionIds))
-      .orderBy(quizOptions.order);
+      .from(questionOptions)
+      .where(inArray(questionOptions.questionId, questionIds))
+      .orderBy(questionOptions.order);
 
     // 组装题目和选项
-    const questionsWithOptions = questions.map(question => {
-      const questionOptions = options
+    const questionsWithOptions = questionsList.map(question => {
+      const questionOptionsList = options
         .filter(opt => opt.questionId === question.id)
         .map(opt => ({
           id: opt.id,
-          text: language === 'EN' && opt.optionTextEn ? opt.optionTextEn : opt.optionText,
+          text: language === 'EN' && opt.textEn ? opt.textEn : opt.text,
           order: opt.order,
           // 在练习模式下显示正确答案，模拟考试模式下不显示
           ...(type === 'practice' && { isCorrect: opt.isCorrect })
@@ -130,14 +125,14 @@ export const GET = withErrorHandling(async (request: NextRequest) => {
       return {
         id: question.id,
         chapterId: question.chapterId,
-        text: language === 'EN' && question.questionTextEn ? question.questionTextEn : question.questionText,
+        text: language === 'EN' && question.titleEn ? question.titleEn : question.title,
+        content: language === 'EN' && question.contentEn ? question.contentEn : question.content,
         explanation: type === 'practice' ? 
           (language === 'EN' && question.explanationEn ? question.explanationEn : question.explanation) : 
           null, // 模拟考试模式下不显示解释
         difficulty: question.difficulty,
         imageUrl: question.imageUrl,
-        order: question.order,
-        options: questionOptions,
+        options: questionOptionsList,
       };
     });
 
@@ -184,14 +179,14 @@ export const POST = withErrorHandling(async (request: NextRequest) => {
     const questionIds = answers.map(a => a.questionId);
     const correctAnswers = await db
       .select({
-        questionId: quizOptions.questionId,
-        optionId: quizOptions.id,
+        questionId: questionOptions.questionId,
+        optionId: questionOptions.id,
       })
-      .from(quizOptions)
+      .from(questionOptions)
       .where(
         and(
-          inArray(quizOptions.questionId, questionIds),
-          eq(quizOptions.isCorrect, true)
+          inArray(questionOptions.questionId, questionIds),
+          eq(questionOptions.isCorrect, true)
         )
       );
 

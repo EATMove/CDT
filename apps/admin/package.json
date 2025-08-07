@@ -41,6 +41,7 @@
     "react": "^19",
     "react-dom": "^19",
     "react-hook-form": "^7.62.0",
+    "react-html-parser": "^2.0.2",
     "shared": "workspace:*",
     "sonner": "^1.2.4",
     "tailwind-merge": "^2.0.0",

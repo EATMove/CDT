@@ -8,9 +8,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { Upload, Eye, Save, Image as ImageIcon, Smartphone, Tablet, Monitor, Copy, Code2, Palette, Plus } from 'lucide-react';
+import { Upload, Eye, Save, Image as ImageIcon, Smartphone, Tablet, Monitor, Copy, Code2, Palette, Plus, Edit, TestTube, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import ImageSelector from '@/components/ImageSelector';
+import ContentPreview from '@/components/ContentPreview';
+import { HTML_TEST_CONTENT, SIMPLE_HTML_TEST } from '@/lib/html-test-content';
 
 // 动态导入Monaco Editor
 import dynamic from 'next/dynamic';
@@ -19,6 +21,9 @@ const MonacoEditor = dynamic(() => import('@monaco-editor/react'), {
   loading: () => <div className="h-full bg-slate-100 rounded-lg flex items-center justify-center">加载编辑器中...</div>,
   ssr: false
 });
+
+// 导入Tailwind CSS支持
+import { initTailwindSupport } from '@/lib/monaco-tailwind';
 
 // 类型定义
 interface ContentData {
@@ -30,6 +35,8 @@ interface ContentData {
   contentEn?: string;
   isPublished: boolean;
   paymentType: 'FREE' | 'MEMBER_ONLY' | 'TRIAL_INCLUDED' | 'PREMIUM';
+  order?: number;
+  estimatedReadTime?: number;
 }
 
 interface ImageUploadResult {
@@ -73,6 +80,8 @@ export default function ContentEditPage() {
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(false);
   const [sections, setSections] = useState<any[]>([]);
+  const [isManualEstimated, setIsManualEstimated] = useState(false);
+  const [stats, setStats] = useState<{ words: number; minutes: number }>({ words: 0, minutes: 0 });
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const editorRef = useRef<any>(null);
@@ -132,7 +141,14 @@ export default function ContentEditPage() {
               content: section.content || '',
               contentEn: section.contentEn || '',
               paymentType: section.isFree ? 'FREE' : 'MEMBER_ONLY',
+              order: section.order,
+              estimatedReadTime: section.estimatedReadTime,
             }));
+            const plain = (section.content || '').replace(/<[^>]*>/g, '');
+            const words = plain.length;
+            const minutes = Math.ceil(words / 200);
+            setStats({ words, minutes });
+            setIsManualEstimated(Boolean(section.estimatedReadTime));
           }
         }
       }
@@ -157,7 +173,11 @@ export default function ContentEditPage() {
     wordWrap: 'on' as const,
     automaticLayout: true,
     suggestOnTriggerCharacters: true,
-    quickSuggestions: true,
+    quickSuggestions: {
+      other: true,
+      comments: false,
+      strings: true
+    },
     snippetSuggestions: 'inline' as const,
     tabSize: 2,
     insertSpaces: true,
@@ -174,20 +194,61 @@ export default function ContentEditPage() {
       horizontal: 'auto' as const,
       verticalScrollbarSize: 8,
       horizontalScrollbarSize: 8,
+    },
+    // 增强的HTML支持
+    acceptSuggestionOnCommitCharacter: true,
+    acceptSuggestionOnEnter: 'on' as const,
+    accessibilitySupport: 'auto' as const,
+    autoClosingBrackets: 'always' as const,
+    autoClosingQuotes: 'always' as const,
+    autoIndent: 'full' as const,
+    codeActionsOnSave: {
+      'source.fixAll': 'explicit' as const,
+      'source.organizeImports': 'explicit' as const,
+    },
+    // 自定义CSS类名提示
+    suggest: {
+      showKeywords: true,
+      showSnippets: true,
+      showClasses: true,
+      showFunctions: true,
+      showVariables: true,
+      showConstants: true,
+      showEnums: true,
+      showInterfaces: true,
+      showModules: true,
+      showProperties: true,
+      showEvents: true,
+      showOperators: true,
+      showUnits: true,
+      showValues: true,
+      showColors: true,
+      showFiles: true,
+      showReferences: true,
+      showFolders: true,
+      showTypeParameters: true,
+      showWords: true,
     }
   };
 
-  // 处理编辑器内容变化
+  // 处理编辑器内容变化 - 添加防抖
   const handleEditorChange = useCallback((value: string | undefined) => {
     if (value !== undefined) {
       // 替换HTML字符串中的 for= 为 htmlFor= (防止React警告)
-      // 这样可以确保用户在编辑器中输入的HTML不会触发React警告
       const sanitizedValue = value.replace(/\sfor=/g, ' htmlFor=');
       handleInputChange('content', sanitizedValue);
+      const plain = sanitizedValue.replace(/<[^>]*>/g, '');
+      const words = plain.length;
+      const minutes = Math.ceil(words / 200);
+      setStats({ words, minutes });
+      if (!isManualEstimated) {
+        handleInputChange('estimatedReadTime', minutes);
+      }
     } else {
       handleInputChange('content', '');
+      setStats({ words: 0, minutes: 0 });
     }
-  }, []);
+  }, [isManualEstimated]);
 
   // 格式化HTML代码
   const formatCode = useCallback(() => {
@@ -196,6 +257,89 @@ export default function ContentEditPage() {
       toast.success('代码已格式化');
     }
   }, []);
+
+  // 校验 SectionId 格式
+  const isValidSectionId = useCallback((id: string, chapterId: string | undefined) => {
+    const ok = /^sec-[a-z]{2}-\d{3}-\d{3}$/i.test(id);
+    if (!ok || !chapterId) return ok;
+    const chapMatch = /^ch-([a-z]{2})-(\d{3})$/i.exec(chapterId);
+    const secMatch = /^sec-([a-z]{2})-(\d{3})-(\d{3})$/i.exec(id);
+    if (!chapMatch || !secMatch) return ok;
+    return chapMatch[1].toLowerCase() === secMatch[1].toLowerCase() && chapMatch[2] === secMatch[2];
+  }, []);
+
+  // 保存内容
+  const handleSave = useCallback(async () => {
+    if (!formData.title || !formData.content || !formData.chapterId) {
+      toast.error('请填写完整信息');
+      return;
+    }
+    // 新建段落时必须填写自定义ID，并进行格式校验
+    if (!formData.sectionId) {
+      toast.error('请先在下方输入合法的段落ID再保存');
+      return;
+    }
+    if (!isValidSectionId(formData.sectionId, formData.chapterId)) {
+      toast.error('段落ID格式或与章节不匹配，应如：sec-ab-001-001');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      // 新建或更新：如果有 sectionId 则 PUT（幂等创建或更新）
+      const method = 'PUT';
+      const response = await fetch('/api/content/save', {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error?.message || errorData.message || '保存失败');
+      }
+
+      const result = await response.json();
+      toast.success(`保存成功！内容ID: ${result.id}`);
+      
+      // 确保URL携带 sectionId（新建时已在表单填写）
+      if (formData.sectionId) {
+        const newUrl = `/content/edit?chapterId=${formData.chapterId}&sectionId=${formData.sectionId}`;
+        window.history.replaceState({}, '', newUrl);
+      }
+      
+      // 重新加载段落列表
+      loadChapterData();
+      
+    } catch (error) {
+      console.error('保存失败:', error);
+      toast.error(error instanceof Error ? error.message : '保存失败，请重试');
+    } finally {
+      setSaving(false);
+    }
+  }, [formData, loadChapterData]);
+
+  // 添加键盘快捷键支持
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    // Ctrl/Cmd + S 保存
+    if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+      e.preventDefault();
+      handleSave();
+    }
+    // Ctrl/Cmd + Shift + F 格式化
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'F') {
+      e.preventDefault();
+      formatCode();
+    }
+  }, [handleSave, formatCode]);
+
+  // 监听键盘事件
+  useEffect(() => {
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [handleKeyDown]);
 
   // 图片上传处理
   const handleImageUpload = useCallback(async () => {
@@ -214,7 +358,7 @@ export default function ContentEditPage() {
     }
 
     // 验证文件大小 (5MB)
-    if (file.size > 5 * 1024 * 1024) {
+    if (file.size > 4 * 1024 * 1024) {
       toast.error('图片大小不能超过5MB');
       return;
     }
@@ -308,71 +452,141 @@ export default function ContentEditPage() {
     }
   }, []);
 
-  // 保存内容
-  const handleSave = useCallback(async () => {
-    if (!formData.title || !formData.content || !formData.chapterId) {
-      toast.error('请填写完整信息');
+  // 删除段落
+  const handleDeleteSection = useCallback(async (sectionId: string) => {
+    if (!confirm('确定要删除这个段落吗？此操作不可撤销。')) {
       return;
     }
 
-    setSaving(true);
     try {
-      // 调用保存API
-      const response = await fetch('/api/content/save', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
+      const response = await fetch(`/api/chapters/${formData.chapterId}/sections/${sectionId}`, {
+        method: 'DELETE',
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error?.message || errorData.message || '保存失败');
+        throw new Error(errorData.error?.message || errorData.message || '删除失败');
       }
 
       const result = await response.json();
-      toast.success(`保存成功！内容ID: ${result.id}`);
-      
-      // 如果是新段落，更新URL参数
-      if (!formData.sectionId && result.id) {
-        const newUrl = `/content/edit?chapterId=${formData.chapterId}&sectionId=${result.id}`;
-        window.history.replaceState({}, '', newUrl);
-        setFormData(prev => ({ ...prev, sectionId: result.id }));
+      if (result.success) {
+        toast.success('段落删除成功');
+        
+        // 如果删除的是当前正在编辑的段落，清空表单
+        if (formData.sectionId === sectionId) {
+          setFormData(prev => ({
+            ...prev,
+            sectionId: undefined,
+            title: '',
+            titleEn: '',
+            content: `<div class="bg-white p-6 rounded-lg shadow-sm border">
+  <h2 class="text-xl font-semibold text-gray-900 mb-4">新段落标题</h2>
+  <p class="text-gray-600 leading-relaxed">
+    请在这里编写内容...
+  </p>
+</div>`,
+            contentEn: '',
+            paymentType: 'FREE',
+          }));
+          
+          // 更新URL，移除sectionId参数
+          const newUrl = `/content/edit?chapterId=${formData.chapterId}`;
+          window.history.replaceState({}, '', newUrl);
+        }
+        
+        // 重新加载段落列表
+        loadChapterData();
       }
-      
-      // 重新加载段落列表
-      loadChapterData();
-      
     } catch (error) {
-      console.error('保存失败:', error);
-      toast.error(error instanceof Error ? error.message : '保存失败，请重试');
-    } finally {
-      setSaving(false);
+      console.error('删除段落失败:', error);
+      toast.error(error instanceof Error ? error.message : '删除失败，请重试');
     }
-  }, [formData]);
+  }, [formData.chapterId, formData.sectionId, loadChapterData]);
 
-  // HTML样式模板
+
+
+  // 增强的HTML样式模板
   const templates = {
-    tip: `<div style="background: #e3f2fd; padding: 16px; border-radius: 8px; margin: 16px 0; border-left: 4px solid #2196f3;">
-  <h3 style="color: #1976d2; margin-bottom: 8px; font-size: 18px;">💡 提示</h3>
-  <p style="margin: 0; color: #424242;">这里是提示内容</p>
+    tip: `<div class="bg-blue-50 border-l-4 border-blue-400 p-4 my-4 rounded-r-lg">
+  <div class="flex items-start">
+    <div class="flex-shrink-0">
+      <svg class="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
+        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+      </svg>
+    </div>
+    <div class="ml-3">
+      <h3 class="text-sm font-medium text-blue-800">💡 提示</h3>
+      <div class="mt-2 text-sm text-blue-700">
+        <p>这里是提示内容</p>
+      </div>
+    </div>
+  </div>
 </div>`,
-    warning: `<div style="background: #fff3e0; padding: 16px; border-radius: 8px; margin: 16px 0; border-left: 4px solid #ff9800;">
-  <h3 style="color: #f57c00; margin-bottom: 8px; font-size: 18px;">⚠️ 注意</h3>
-  <p style="margin: 0; color: #424242;">这里是注意事项</p>
+    warning: `<div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 my-4 rounded-r-lg">
+  <div class="flex items-start">
+    <div class="flex-shrink-0">
+      <svg class="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+        <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+      </svg>
+    </div>
+    <div class="ml-3">
+      <h3 class="text-sm font-medium text-yellow-800">⚠️ 注意</h3>
+      <div class="mt-2 text-sm text-yellow-700">
+        <p>这里是注意事项</p>
+      </div>
+    </div>
+  </div>
 </div>`,
-    traffic: `<div style="background: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
-  <h3 style="color: #333; margin-bottom: 16px; text-align: center;">🚦 交通信号灯</h3>
-  <div style="background: #ffebee; padding: 12px; border-radius: 6px; margin-bottom: 12px;">
-    <strong style="color: #d32f2f;">🔴 红灯：</strong> 完全停止
+    traffic: `<div class="bg-gray-50 p-6 my-6 rounded-lg border">
+  <h3 class="text-lg font-semibold text-gray-900 mb-4 text-center">🚦 交通信号灯</h3>
+  <div class="space-y-3">
+    <div class="bg-red-50 border border-red-200 p-3 rounded-lg">
+      <div class="flex items-center">
+        <div class="w-4 h-4 bg-red-500 rounded-full mr-3"></div>
+        <strong class="text-red-800">红灯：</strong>
+        <span class="ml-2 text-red-700">完全停止</span>
+      </div>
+    </div>
+    <div class="bg-yellow-50 border border-yellow-200 p-3 rounded-lg">
+      <div class="flex items-center">
+        <div class="w-4 h-4 bg-yellow-500 rounded-full mr-3"></div>
+        <strong class="text-yellow-800">黄灯：</strong>
+        <span class="ml-2 text-yellow-700">准备停车</span>
+      </div>
+    </div>
+    <div class="bg-green-50 border border-green-200 p-3 rounded-lg">
+      <div class="flex items-center">
+        <div class="w-4 h-4 bg-green-500 rounded-full mr-3"></div>
+        <strong class="text-green-800">绿灯：</strong>
+        <span class="ml-2 text-green-700">安全通过</span>
+      </div>
+    </div>
   </div>
-  <div style="background: #fff8e1; padding: 12px; border-radius: 6px; margin-bottom: 12px;">
-    <strong style="color: #f57c00;">🟡 黄灯：</strong> 准备停车
-  </div>
-  <div style="background: #e8f5e8; padding: 12px; border-radius: 6px;">
-    <strong style="color: #388e3c;">🟢 绿灯：</strong> 安全通过
-  </div>
+</div>`,
+    card: `<div class="bg-white border border-gray-200 rounded-lg shadow-sm p-6 my-4">
+  <h3 class="text-lg font-semibold text-gray-900 mb-2">卡片标题</h3>
+  <p class="text-gray-600">这里是卡片内容</p>
+</div>`,
+    button: `<button class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+  按钮文本
+</button>`,
+    table: `<div class="overflow-x-auto my-4">
+  <table class="min-w-full divide-y divide-gray-200">
+    <thead class="bg-gray-50">
+      <tr>
+        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">标题1</th>
+        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">标题2</th>
+        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">标题3</th>
+      </tr>
+    </thead>
+    <tbody class="bg-white divide-y divide-gray-200">
+      <tr>
+        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">内容1</td>
+        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">内容2</td>
+        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">内容3</td>
+      </tr>
+    </tbody>
+  </table>
 </div>`
   };
 
@@ -393,6 +607,7 @@ export default function ContentEditPage() {
       <Card className="mb-6">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
+            <Edit className="w-5 h-5" />
             📝 段落编辑器
           </CardTitle>
         </CardHeader>
@@ -437,15 +652,22 @@ export default function ContentEditPage() {
             </div>
           </div>
 
-          <div className="flex items-center space-x-2">
-            <input
-              type="checkbox"
-              id="isPublished"
-              checked={formData.isPublished || false}
-              onChange={(e) => handleInputChange('isPublished', e.target.checked)}
-              className="rounded"
-            />
-            <Label htmlFor="isPublished">立即发布</Label>
+          {/* 统计信息与排序 */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="text-sm text-slate-600 bg-slate-50 p-3 rounded border">
+              字数：{stats.words} • 预计阅读：{stats.minutes} 分
+            </div>
+            <div>
+              <Label htmlFor="order">顺序（order）</Label>
+              <Input
+                id="order"
+                type="number"
+                value={formData.order ?? ''}
+                onChange={(e) => handleInputChange('order', Number(e.target.value))}
+                placeholder="例如：1、2、3..."
+              />
+            </div>
+            <div />
           </div>
 
           {/* 段落列表 */}
@@ -461,20 +683,22 @@ export default function ContentEditPage() {
                     sectionId: undefined,
                     title: '',
                     titleEn: '',
-                    content: `<div style="padding: 20px; font-family: -apple-system, BlinkMacSystemFont, sans-serif; line-height: 1.6; color: #333;">
-  <h2 style="color: #2c3e50; margin-bottom: 20px; font-size: 24px;">新段落标题</h2>
-  
-  <p style="margin-bottom: 16px; color: #555;">
+                    content: `<div class="bg-white p-6 rounded-lg shadow-sm border">
+  <h2 class="text-xl font-semibold text-gray-900 mb-4">新段落标题</h2>
+  <p class="text-gray-600 leading-relaxed">
     请在这里编写内容...
   </p>
 </div>`,
                     contentEn: '',
                     paymentType: 'FREE',
+                    order: undefined,
+                    estimatedReadTime: undefined,
                   }));
+                  setIsManualEstimated(false);
                 }}
               >
                 <Plus className="w-3 h-3 mr-1" />
-                新建段落
+                 新建段落
               </Button>
             </div>
             <div className="space-y-2 max-h-40 overflow-y-auto">
@@ -506,7 +730,14 @@ export default function ContentEditPage() {
                           content: section.content || '',
                           contentEn: section.contentEn || '',
                           paymentType: section.isFree ? 'FREE' : 'MEMBER_ONLY',
+                          order: section.order,
+                          estimatedReadTime: section.estimatedReadTime,
                         }));
+                        const plain = (section.content || '').replace(/<[^>]*>/g, '');
+                        const words = plain.length;
+                        const minutes = Math.ceil(words / 200);
+                        setStats({ words, minutes });
+                        setIsManualEstimated(Boolean(section.estimatedReadTime));
                         
                         // 更新URL
                         const newUrl = `/content/edit?chapterId=${formData.chapterId}&sectionId=${section.id}`;
@@ -525,221 +756,248 @@ export default function ContentEditPage() {
                             {section.isFree ? '🆓' : '💎'}
                           </div>
                           <Button
-                            size="sm"
                             variant="ghost"
-                            className="h-6 w-6 p-0"
+                            size="sm"
                             onClick={(e) => {
                               e.stopPropagation();
-                              window.open(`/content/${section.id}`, '_blank');
+                              router.push(`/content/${section.id}`);
                             }}
-                            title="在新窗口查看"
                           >
                             <Eye className="w-3 h-3" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteSection(section.id);
+                            }}
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          >
+                            <Trash2 className="w-3 h-3" />
                           </Button>
                         </div>
                       </div>
                     </div>
                   ))
                 )}
-              </div>
             </div>
+          </div>
 
-          {/* 操作按钮 */}
-          <div className="flex justify-between items-center pt-4">
-            <div className="text-sm text-slate-500">
-              💡 提示：Ctrl+S保存，Ctrl+Shift+F格式化代码
+          {/* 手动设置段落ID */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <Label htmlFor="sectionId">段落ID（必填，保存前填写）</Label>
+              <Input
+                id="sectionId"
+                value={formData.sectionId || ''}
+                onChange={(e) => handleInputChange('sectionId', e.target.value.trim())}
+                placeholder="例如：sec-ab-001-001"
+              />
+              {formData.sectionId && !isValidSectionId(formData.sectionId, formData.chapterId) && (
+                <div className="text-xs text-red-600 mt-1">格式应为 sec-省份两位-章节三位-段落三位，并与上方章节ID匹配</div>
+              )}
             </div>
-            <div className="flex gap-2">
-              <Button 
-                variant="outline" 
-                onClick={() => router.push(`/chapters/${formData.chapterId}`)}
-              >
-                查看章节
-              </Button>
-              <Button 
-                variant="outline" 
-                onClick={() => router.push(`/chapters/${formData.chapterId}/edit`)}
-              >
-                编辑章节
-              </Button>
-              <Button onClick={handleSave} disabled={saving}>
-                <Save className="w-4 h-4 mr-1" />
-                {saving ? '保存中...' : '保存段落'}
-              </Button>
+          </div>
+          {/* 预计阅读时间（可手动覆盖） */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <Label htmlFor="estimatedReadTime">预计阅读时间（分钟，可手动调整）</Label>
+              <Input
+                id="estimatedReadTime"
+                type="number"
+                value={formData.estimatedReadTime ?? ''}
+                onChange={(e) => {
+                  const val = Number(e.target.value);
+                  setIsManualEstimated(Number.isFinite(val));
+                  handleInputChange('estimatedReadTime', val);
+                }}
+                placeholder="例如：5"
+              />
             </div>
+          </div>
+
+          {/* 保存按钮 */}
+          <div className="flex justify-end">
+            <Button 
+              onClick={handleSave} 
+              disabled={saving}
+              className="min-w-[120px]"
+            >
+              {saving ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  保存中...
+                </>
+              ) : (
+                <>
+                  <Save className="w-4 h-4 mr-1" />
+                  保存段落
+                </>
+              )}
+            </Button>
           </div>
         </CardContent>
       </Card>
 
-             {/* 左右分栏：编辑器 + 预览 */}
-       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6" style={{ height: 'calc(100vh - 400px)' }}>
-         {/* 左侧：代码编辑器 */}
-         <Card className="flex flex-col overflow-hidden">
-           <CardHeader className="pb-3 flex-shrink-0">
-             <div className="flex items-center justify-between">
-               <CardTitle className="flex items-center gap-2 text-lg">
-                 <Code2 className="w-5 h-5" />
-                 HTML编辑器
-               </CardTitle>
-               <div className="flex items-center gap-2">
-                 <Button variant="outline" size="sm" onClick={formatCode}>
-                   <Palette className="w-4 h-4 mr-1" />
-                   格式化
-                 </Button>
-               </div>
-             </div>
-           </CardHeader>
-           <CardContent className="flex-1 p-0 flex flex-col overflow-hidden">
-             {/* 工具栏 */}
-             <div className="flex flex-wrap items-center gap-2 p-3 border-b bg-slate-50 flex-shrink-0">
-               <Button
-                 variant="outline"
-                 size="sm"
-                 onClick={handleImageUpload}
-                 disabled={uploading}
-               >
-                 <ImageIcon className="w-4 h-4 mr-1" />
-                 {uploading ? '上传中...' : '上传图片'}
-               </Button>
-               
-               <ImageSelector
-                 chapterId={searchParams.get('chapterId') || undefined}
-                 sectionId={searchParams.get('sectionId') || undefined}
-                 defaultUsage="content"
-                 onImageSelect={(image) => {
-                   if (editorRef.current) {
-                     const editor = editorRef.current;
-                     const selection = editor.getSelection();
-                     const imageHtml = `<img src="${image.fileUrl}" alt="${image.altText || image.originalName}" style="max-width: 100%; height: auto; border-radius: 8px; margin: 16px 0;" />`;
-                     
-                     editor.executeEdits('insert-image', [{
-                       range: selection,
-                       text: '\n' + imageHtml + '\n'
-                     }]);
-                     
-                     // 更新formData
-                     const newContent = editor.getValue();
-                     handleInputChange('content', newContent);
-                     
-                     toast.success('图片已插入到编辑器');
-                   }
-                 }}
-                 trigger={
-                   <Button variant="outline" size="sm">
-                     <Eye className="w-4 h-4 mr-1" />
-                     选择图片
-                   </Button>
-                 }
-               />
-               
-               <Separator orientation="vertical" className="h-6" />
-               
-               <div className="flex items-center gap-1">
-                 <span className="text-sm text-slate-600">快速插入：</span>
-                 <Button
-                   variant="ghost"
-                   size="sm"
-                   onClick={() => insertTemplate(templates.tip)}
-                 >
-                   <Copy className="w-3 h-3 mr-1" />
-                   提示框
-                 </Button>
-                 <Button
-                   variant="ghost"
-                   size="sm"
-                   onClick={() => insertTemplate(templates.warning)}
-                 >
-                   <Copy className="w-3 h-3 mr-1" />
-                   警告框
-                 </Button>
-                 <Button
-                   variant="ghost"
-                   size="sm"
-                   onClick={() => insertTemplate(templates.traffic)}
-                 >
-                   <Copy className="w-3 h-3 mr-1" />
-                   交通灯
-                 </Button>
-               </div>
-             </div>
+      {/* 编辑器和预览区域 */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        {/* 左侧：代码编辑器 - 占据更多空间 */}
+        <Card className="flex flex-col overflow-hidden xl:col-span-2">
+          <CardHeader className="pb-3 flex-shrink-0">
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Code2 className="w-5 h-5" />
+                HTML编辑器
+              </CardTitle>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={formatCode}>
+                  <Code2 className="w-4 h-4 mr-1" />
+                  格式化
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="flex-1 p-0 flex flex-col overflow-hidden">
+            {/* 工具栏 */}
+            <div className="flex items-center justify-between p-3 border-b bg-gray-50">
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleImageUpload}
+                  disabled={uploading}
+                >
+                  <Upload className="w-4 h-4 mr-1" />
+                  {uploading ? '上传中...' : '上传图片'}
+                </Button>
+                
+                <ImageSelector
+                  onImageSelect={(image) => {
+                    if (editorRef.current) {
+                      const editor = editorRef.current;
+                      const selection = editor.getSelection();
+                      const imageHtml = `<img src="${image.fileUrl}" alt="${image.altText || image.originalName}" class="max-w-full h-auto rounded-lg my-4" />`;
+                      
+                      editor.executeEdits('insert-image', [{
+                        range: selection,
+                        text: '\n' + imageHtml + '\n'
+                      }]);
+                      
+                      // 更新formData
+                      const newContent = editor.getValue();
+                      handleInputChange('content', newContent);
+                      
+                      toast.success('图片已插入到编辑器');
+                    }
+                  }}
+                  trigger={
+                    <Button variant="outline" size="sm">
+                      <Eye className="w-4 h-4 mr-1" />
+                      选择图片
+                    </Button>
+                  }
+                />
+              </div>
 
-             {/* Monaco编辑器 */}
-             <div className="flex-1 overflow-hidden" style={{ minHeight: 0 }}>
-               <MonacoEditor
-                 height="100%"
-                 defaultLanguage="html"
-                 value={formData.content}
-                 onChange={handleEditorChange}
-                 options={editorOptions}
-                 onMount={(editor) => {
-                   editorRef.current = editor;
-                   // 确保编辑器适应容器大小
-                   setTimeout(() => {
-                     editor.layout();
-                   }, 100);
-                 }}
-                 theme="vs"
-               />
-             </div>
-           </CardContent>
-         </Card>
+              <div className="flex items-center gap-1">
+                <span className="text-sm text-slate-600">快速插入：</span>
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => insertTemplate(templates.tip)}
+                    title="插入提示框"
+                  >
+                    <Copy className="w-3 h-3 mr-1" />
+                    提示
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => insertTemplate(templates.warning)}
+                    title="插入警告框"
+                  >
+                    <Copy className="w-3 h-3 mr-1" />
+                    警告
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => insertTemplate(templates.traffic)}
+                    title="插入交通灯"
+                  >
+                    <Copy className="w-3 h-3 mr-1" />
+                    交通灯
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => insertTemplate(templates.card)}
+                    title="插入卡片"
+                  >
+                    <Copy className="w-3 h-3 mr-1" />
+                    卡片
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => insertTemplate(templates.table)}
+                    title="插入表格"
+                  >
+                    <Copy className="w-3 h-3 mr-1" />
+                    表格
+                  </Button>
+                  
+                  <Separator orientation="vertical" className="h-4" />
+                  
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      handleInputChange('content', HTML_TEST_CONTENT);
+                      toast.success('已插入完整HTML测试内容');
+                    }}
+                    title="插入完整HTML测试"
+                  >
+                    <TestTube className="w-3 h-3 mr-1" />
+                    完整测试
+                  </Button>
+                </div>
+              </div>
+            </div>
 
-                 {/* 右侧：实时预览 */}
-         <Card className="flex flex-col overflow-hidden">
-           <CardHeader className="pb-3 flex-shrink-0">
-             <div className="flex items-center justify-between">
-               <CardTitle className="flex items-center gap-2 text-lg">
-                 <Eye className="w-5 h-5" />
-                 实时预览
-               </CardTitle>
-               <div className="flex items-center gap-2">
-                 <span className="text-sm text-slate-600">设备：</span>
-                 <Button
-                   variant={previewDevice === 'mobile' ? 'default' : 'outline'}
-                   size="sm"
-                   onClick={() => setPreviewDevice('mobile')}
-                 >
-                   <Smartphone className="w-4 h-4" />
-                 </Button>
-                 <Button
-                   variant={previewDevice === 'tablet' ? 'default' : 'outline'}
-                   size="sm"
-                   onClick={() => setPreviewDevice('tablet')}
-                 >
-                   <Tablet className="w-4 h-4" />
-                 </Button>
-                 <Button
-                   variant={previewDevice === 'desktop' ? 'default' : 'outline'}
-                   size="sm"
-                   onClick={() => setPreviewDevice('desktop')}
-                 >
-                   <Monitor className="w-4 h-4" />
-                 </Button>
-               </div>
-             </div>
-           </CardHeader>
-           <CardContent className="flex-1 p-0 overflow-hidden">
-             {/* 预览区域 */}
-             <div className="h-full border-t bg-white overflow-hidden">
-               <div className={`mx-auto h-full overflow-auto ${
-                 previewDevice === 'mobile' ? 'max-w-sm' :
-                 previewDevice === 'tablet' ? 'max-w-2xl' :
-                 'w-full'
-               }`}>
-                 <div className="bg-slate-100 p-2 text-sm text-slate-600 text-center sticky top-0 z-10 flex-shrink-0">
-                   📱 {previewDevice} 预览效果
-                 </div>
-                 <div 
-                   className="bg-white overflow-auto p-4"
-                   style={{ height: 'calc(100% - 40px)' }}
-                   dangerouslySetInnerHTML={{ 
-                     __html: (formData.content || '<p style="padding: 20px; color: #999; text-align: center;">暂无内容</p>').replace(/\sfor=/g, ' htmlFor=')
-                   }}
-                 />
-               </div>
-             </div>
-           </CardContent>
-         </Card>
+            {/* Monaco编辑器 */}
+            <div className="flex-1 overflow-hidden" style={{ minHeight: '700px' }}>
+              <MonacoEditor
+                height="100%"
+                defaultLanguage="html"
+                value={formData.content}
+                onChange={handleEditorChange}
+                options={editorOptions}
+                onMount={(editor) => {
+                  editorRef.current = editor;
+                  // 初始化Tailwind CSS支持
+                  initTailwindSupport();
+                  // 确保编辑器适应容器大小
+                  setTimeout(() => {
+                    editor.layout();
+                  }, 100);
+                }}
+                theme="tailwind-theme"
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* 右侧：实时预览 - 占据较少空间 */}
+        <div className="xl:col-span-1">
+          <ContentPreview
+            content={formData.content || ''}
+            device={previewDevice}
+            onDeviceChange={setPreviewDevice}
+          />
+        </div>
       </div>
 
       {/* 隐藏的文件输入 */}

@@ -26,6 +26,7 @@ import {
 import { toast } from 'sonner';
 import Link from 'next/link';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { generateSimplePreviewHTML } from '@/lib/preview-styles';
 
 interface SectionData {
   id: string;
@@ -398,7 +399,7 @@ export default function SectionViewPage() {
               <div className="bg-slate-50 rounded-lg p-6 border">
                 <div 
                   className="prose prose-sm max-w-none"
-                  dangerouslySetInnerHTML={{ __html: sectionData.content }}
+                  dangerouslySetInnerHTML={{ __html: generateSimplePreviewHTML(sectionData.content) }}
                 />
               </div>
 

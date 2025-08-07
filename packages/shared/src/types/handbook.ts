@@ -241,6 +241,10 @@ export const CreateChapterSchema = z.object({
 });
 
 export const CreateSectionSchema = z.object({
+  // 需要手动指定段落ID，且必须符合规则：sec-xx-xxx-xxx
+  id: z
+    .string()
+    .regex(/^sec-[a-z]{2}-\d{3}-\d{3}$/i, '段落ID格式必须为 sec-<省份(2字母)>-<章节三位数>-<段落三位数>，例如 sec-ab-001-001'),
   chapterId: z.string().min(1, '章节ID不能为空'),
   title: z.string().min(1, '段落标题不能为空').max(200, '标题长度不能超过200字符'),
   titleEn: z.string().max(200, '英文标题长度不能超过200字符').optional(),

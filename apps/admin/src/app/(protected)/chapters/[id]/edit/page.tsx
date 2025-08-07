@@ -358,7 +358,7 @@ export default function ChapterEditPage() {
                     value={chapterData.province} 
                     onValueChange={(value) => setChapterData(prev => prev ? { ...prev, province: value as any } : null)}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger id="province">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -376,7 +376,7 @@ export default function ChapterEditPage() {
                   value={chapterData.paymentType} 
                   onValueChange={(value) => setChapterData(prev => prev ? { ...prev, paymentType: value as any } : null)}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger id="paymentType">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -394,7 +394,7 @@ export default function ChapterEditPage() {
                   value={chapterData.publishStatus} 
                   onValueChange={(value) => setChapterData(prev => prev ? { ...prev, publishStatus: value as any } : null)}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger id="publishStatus">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>

@@ -16,8 +16,8 @@ export default function TabOneScreen() {
       />
       
       <TouchableOpacity
-        className="bg-blue-500 px-6 py-3 rounded-lg mb-4"
-        onPress={() => router.push('/test-handbook')}
+        className="bg-green-500 px-6 py-3 rounded-lg mb-4"
+        onPress={() => router.push('/simple-test')}
       >
         <Text className="text-white font-semibold">测试手册功能</Text>
       </TouchableOpacity>

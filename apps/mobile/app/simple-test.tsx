@@ -6,12 +6,12 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
-  Image,
   SafeAreaView,
+  Platform,
+  TextInput,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import HtmlRenderer from '@/components/HtmlRenderer';
-import { useUserStore } from '../stores/userStore';
+import HtmlRenderer from '../components/HtmlRenderer';
 
 interface Chapter {
   id: string;
@@ -19,12 +19,10 @@ interface Chapter {
   description: string;
   order: number;
   estimatedReadTime: number;
-  coverImageUrl?: string;
   canAccess: boolean;
   status: string;
   totalSections: number;
   accessibleSections: number;
-  requiresUpgrade: boolean;
 }
 
 interface Section {
@@ -36,7 +34,6 @@ interface Section {
   content: string;
   wordCount: number;
   estimatedReadTime: number;
-  images: any[];
 }
 
 interface ChapterContent {
@@ -50,58 +47,115 @@ interface ChapterContent {
   userCanAccess: boolean;
 }
 
-export default function TestHandbookScreen() {
+export default function SimpleTestScreen() {
   const router = useRouter();
   const [chapters, setChapters] = useState<Chapter[]>([]);
   const [selectedChapter, setSelectedChapter] = useState<ChapterContent | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadingChapter, setLoadingChapter] = useState(false);
-
-  // 从状态管理获取用户信息
-  const { userType, language, province, setUserType, setLanguage, setProvince, loadUserSettings } = useUserStore();
+  const [userType, setUserType] = useState<'FREE' | 'TRIAL' | 'MEMBER'>('FREE');
+  const [language, setLanguage] = useState<'ZH' | 'EN'>('ZH');
+  const [customIp, setCustomIp] = useState('192.168.1.70'); // 默认IP，需要修改为你的实际IP
+  
+  // 根据平台选择不同的API地址
+  const getApiBaseUrl = () => {
+    // 在web环境下使用localhost，在移动端使用电脑IP地址
+    if (Platform.OS === 'web') {
+      return 'http://localhost:3000';
+    } else {
+      return `http://${customIp}:3000`;
+    }
+  };
 
   useEffect(() => {
-    loadUserSettings();
     fetchChapters();
-  }, []);
+  }, [userType, language]);
 
   const fetchChapters = async () => {
     try {
       setLoading(true);
-      const response = await fetch(
-        `http://localhost:3000/api/mobile/chapters?userType=${userType}&language=${language}&province=${province}`
-      );
+      console.log('Fetching chapters...');
+      
+      const url = `${getApiBaseUrl()}/api/mobile/chapters?userType=${userType}&language=${language}&province=ON`;
+      console.log('Request URL:', url);
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      console.log('Response status:', response.status);
+      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
       
       if (!response.ok) {
-        throw new Error('Failed to fetch chapters');
+        const errorText = await response.text();
+        console.error('Error response:', errorText);
+        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
       }
       
       const data = await response.json();
-      setChapters(data.data.chapters);
+      console.log('Chapters data:', data);
+      
+      if (data.success && data.data && data.data.chapters) {
+        setChapters(data.data.chapters);
+      } else {
+        console.warn('Unexpected data structure:', data);
+        setChapters([]);
+      }
     } catch (error) {
       console.error('Error fetching chapters:', error);
-      Alert.alert('错误', '获取章节列表失败');
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      Alert.alert('错误', `获取章节列表失败: ${errorMessage}`);
+      setChapters([]);
     } finally {
       setLoading(false);
     }
   };
 
+  const handleUserTypeChange = () => {
+    const types: Array<'FREE' | 'TRIAL' | 'MEMBER'> = ['FREE', 'TRIAL', 'MEMBER'];
+    const currentIndex = types.indexOf(userType);
+    const nextIndex = (currentIndex + 1) % types.length;
+    setUserType(types[nextIndex]);
+  };
+
+  const handleLanguageChange = () => {
+    setLanguage(language === 'ZH' ? 'EN' : 'ZH');
+  };
+
   const fetchChapterContent = async (chapterId: string) => {
     try {
       setLoadingChapter(true);
-      const response = await fetch(
-        `http://localhost:3000/api/mobile/content/${chapterId}?userType=${userType}&language=${language}`
-      );
+      const url = `${getApiBaseUrl()}/api/mobile/content/${chapterId}?userType=${userType}&language=${language}`;
+      console.log('Fetching chapter content from:', url);
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
       
       if (!response.ok) {
-        throw new Error('Failed to fetch chapter content');
+        const errorText = await response.text();
+        throw new Error(`Failed to fetch chapter content: ${response.status} - ${errorText}`);
       }
       
       const data = await response.json();
-      setSelectedChapter(data.data);
+      console.log('Chapter content response:', data);
+      
+      if (data.success && data.data) {
+        setSelectedChapter(data.data);
+      } else {
+        console.warn('Unexpected chapter data structure:', data);
+        Alert.alert('错误', '章节数据格式异常');
+      }
     } catch (error) {
       console.error('Error fetching chapter content:', error);
-      Alert.alert('错误', '获取章节内容失败');
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      Alert.alert('错误', `获取章节内容失败: ${errorMessage}`);
     } finally {
       setLoadingChapter(false);
     }
@@ -113,51 +167,30 @@ export default function TestHandbookScreen() {
       className="bg-white rounded-lg p-4 mb-3 shadow-sm border border-gray-200"
       onPress={() => fetchChapterContent(chapter.id)}
     >
-      <View className="flex-row items-center">
-        {chapter.coverImageUrl && (
-          <Image
-            source={{ uri: chapter.coverImageUrl }}
-            className="w-16 h-16 rounded-lg mr-3"
-            resizeMode="cover"
-          />
-        )}
-        <View className="flex-1">
-          <View className="flex-row items-center mb-1">
-            <Text className="text-lg font-semibold text-gray-900 flex-1">
-              {chapter.title}
-            </Text>
-            {!chapter.canAccess && (
-              <View className="bg-orange-100 px-2 py-1 rounded">
-                <Text className="text-orange-600 text-xs">需要升级</Text>
-              </View>
-            )}
-          </View>
-          <Text className="text-gray-600 text-sm mb-2" numberOfLines={2}>
-            {chapter.description}
-          </Text>
-          <View className="flex-row items-center justify-between">
-            <View className="flex-row items-center">
-              <Text className="text-gray-500 text-xs">
-                {chapter.totalSections} 段落
-              </Text>
-              <Text className="text-gray-400 mx-1">•</Text>
-              <Text className="text-gray-500 text-xs">
-                {chapter.estimatedReadTime} 分钟
-              </Text>
-            </View>
-            <View className="flex-row items-center">
-              <Text className="text-gray-500 text-xs">
-                可访问: {chapter.accessibleSections}/{chapter.totalSections}
-              </Text>
-            </View>
-          </View>
-        </View>
+      <Text className="text-lg font-semibold text-gray-900 mb-2">
+        {chapter.title}
+      </Text>
+      <Text className="text-gray-600 text-sm mb-2">
+        {chapter.description}
+      </Text>
+      <View className="flex-row items-center justify-between">
+        <Text className="text-gray-500 text-xs">
+          段落: {chapter.totalSections} | 可访问: {chapter.accessibleSections}
+        </Text>
+        <Text className="text-gray-500 text-xs">
+          {chapter.estimatedReadTime} 分钟
+        </Text>
       </View>
+      {!chapter.canAccess && (
+        <View className="bg-orange-100 px-2 py-1 rounded mt-2">
+          <Text className="text-orange-600 text-xs">需要升级</Text>
+        </View>
+      )}
     </TouchableOpacity>
   );
 
   const renderSectionItem = (section: Section) => (
-    <View key={section.id} className="mb-6">
+    <View key={section.id} className="mb-4">
       <View className="flex-row items-center mb-2">
         <Text className="text-lg font-semibold text-gray-900 flex-1">
           {section.title}
@@ -175,21 +208,11 @@ export default function TestHandbookScreen() {
       </View>
       
       <View className="bg-gray-50 rounded-lg p-3">
-        <HtmlRenderer html={section.content} />
+        <HtmlRenderer 
+          html={section.content} 
+          baseUrl={getApiBaseUrl()}
+        />
       </View>
-      
-      {section.images && section.images.length > 0 && (
-        <ScrollView horizontal className="mt-3" showsHorizontalScrollIndicator={false}>
-          {section.images.map((image, index) => (
-            <Image
-              key={index}
-              source={{ uri: image.smallUrl || image.fileUrl }}
-              className="w-20 h-20 rounded-lg mr-2"
-              resizeMode="cover"
-            />
-          ))}
-        </ScrollView>
-      )}
       
       <View className="flex-row items-center mt-2">
         <Text className="text-gray-500 text-xs">
@@ -220,46 +243,53 @@ export default function TestHandbookScreen() {
         {/* Header */}
         <View className="bg-white px-4 py-3 border-b border-gray-200">
           <View className="flex-row items-center justify-between">
-            <Text className="text-xl font-bold text-gray-900">驾考手册测试</Text>
+            <Text className="text-xl font-bold text-gray-900">测试手册功能</Text>
             <TouchableOpacity
-              onPress={() => setSelectedChapter(null)}
+              onPress={() => {
+                if (selectedChapter) {
+                  setSelectedChapter(null);
+                } else {
+                  router.back();
+                }
+              }}
               className="bg-blue-500 px-3 py-1 rounded"
             >
-              <Text className="text-white text-sm">返回列表</Text>
+              <Text className="text-white text-sm">
+                {selectedChapter ? '返回列表' : '返回'}
+              </Text>
             </TouchableOpacity>
           </View>
           <Text className="text-gray-600 text-sm mt-1">
-            用户类型: {userType} | 语言: {language} | 省份: {province}
+            用户类型: {userType} | 语言: {language}
           </Text>
+          
+          {/* IP地址配置 */}
+          {Platform.OS !== 'web' && (
+            <View className="mt-2">
+              <Text className="text-gray-600 text-xs mb-1">服务器IP地址:</Text>
+              <TextInput
+                value={customIp}
+                onChangeText={setCustomIp}
+                className="bg-gray-100 px-2 py-1 rounded text-sm"
+                placeholder="输入你的电脑IP地址"
+                placeholderTextColor="#999"
+              />
+            </View>
+          )}
           
           {/* 设置面板 */}
           <View className="mt-3 flex-row space-x-2">
             <TouchableOpacity
-              onPress={() => {
-                setUserType(userType === 'FREE' ? 'TRIAL' : userType === 'TRIAL' ? 'MEMBER' : 'FREE');
-                setTimeout(() => fetchChapters(), 100);
-              }}
+              onPress={handleUserTypeChange}
               className="bg-gray-200 px-2 py-1 rounded"
             >
               <Text className="text-gray-700 text-xs">切换用户类型</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              onPress={() => {
-                setLanguage(language === 'ZH' ? 'EN' : 'ZH');
-                setTimeout(() => fetchChapters(), 100);
-              }}
+              onPress={handleLanguageChange}
               className="bg-gray-200 px-2 py-1 rounded"
             >
               <Text className="text-gray-700 text-xs">切换语言</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => {
-                setProvince(province === 'ON' ? 'BC' : province === 'BC' ? 'AB' : 'ON');
-                setTimeout(() => fetchChapters(), 100);
-              }}
-              className="bg-gray-200 px-2 py-1 rounded"
-            >
-              <Text className="text-gray-700 text-xs">切换省份</Text>
             </TouchableOpacity>
             <TouchableOpacity
               onPress={fetchChapters}
@@ -311,7 +341,14 @@ export default function TestHandbookScreen() {
               <Text className="text-lg font-semibold text-gray-900 mb-4">
                 章节列表 ({chapters.length})
               </Text>
-              {chapters.map(renderChapterItem)}
+              
+              {chapters.length === 0 ? (
+                <View className="bg-white rounded-lg p-4 shadow-sm">
+                  <Text className="text-gray-600 text-center">暂无章节数据</Text>
+                </View>
+              ) : (
+                chapters.map(renderChapterItem)
+              )}
             </View>
           )}
         </ScrollView>

@@ -305,7 +305,7 @@ export default function ContentEditPage() {
       toast.success(`保存成功！内容ID: ${result.id}`);
       
       // 确保URL携带 sectionId（新建时已在表单填写）
-      if (formData.sectionId) {
+      if (formData.sectionId && typeof window !== 'undefined') {
         const newUrl = `/content/edit?chapterId=${formData.chapterId}&sectionId=${formData.sectionId}`;
         window.history.replaceState({}, '', newUrl);
       }
@@ -491,7 +491,9 @@ export default function ContentEditPage() {
           
           // 更新URL，移除sectionId参数
           const newUrl = `/content/edit?chapterId=${formData.chapterId}`;
-          window.history.replaceState({}, '', newUrl);
+          if (typeof window !== 'undefined') {
+            window.history.replaceState({}, '', newUrl);
+          }
         }
         
         // 重新加载段落列表
@@ -741,7 +743,9 @@ export default function ContentEditPage() {
                         
                         // 更新URL
                         const newUrl = `/content/edit?chapterId=${formData.chapterId}&sectionId=${section.id}`;
-                        window.history.replaceState({}, '', newUrl);
+                        if (typeof window !== 'undefined') {
+                          window.history.replaceState({}, '', newUrl);
+                        }
                       }}
                     >
                       <div className="flex items-center justify-between">

@@ -30,11 +30,6 @@ export default function Navigation() {
       icon: BookOpen,
     },
     {
-      title: '内容编辑',
-      href: '/content/edit',
-      icon: Plus,
-    },
-    {
       title: '图片管理',
       href: '/images',
       icon: Image,

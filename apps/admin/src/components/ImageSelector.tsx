@@ -45,72 +45,48 @@ export default function ImageSelector({ onImageSelect, trigger, chapterId, secti
   const [searchTerm, setSearchTerm] = useState('');
   const [filterUsage, setFilterUsage] = useState<string>(defaultUsage || 'all');
   const [isOpen, setIsOpen] = useState(false);
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(20);
+  const [total, setTotal] = useState(0);
+  const [onlyCurrentSection, setOnlyCurrentSection] = useState<boolean>(Boolean(sectionId));
   
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   // 当上下文变化时重新加载图片
   useEffect(() => {
     if (isOpen) {
+      setPage(1);
       loadImages();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chapterId, sectionId, isOpen]);
 
   // 加载图片列表
   const loadImages = async () => {
     setLoading(true);
     try {
-      // 构建查询参数
+      // 仅按 sectionId 精确筛选并分页，减少加载体量
       const params = new URLSearchParams();
-      
-      // 优先使用上下文API获取相关图片
-      if (chapterId || sectionId) {
-        if (sectionId) {
-          params.append('sectionId', sectionId);
-        } else if (chapterId) {
-          params.append('chapterId', chapterId);
-        }
-        
-        // 包含最近上传的图片
-        params.append('includeRecent', 'true');
-        
-        const response = await fetch(`/api/images/context?${params}`);
-        if (response.ok) {
-          const result = await response.json();
-          if (result.success) {
-            // 合并上下文图片、最近图片和建议图片
-            const allImages = [
-              ...(result.data.contextImages || []),
-              ...(result.data.recentImages || []),
-              ...(result.data.suggestions || [])
-            ];
-            
-            // 去重（基于id）
-            const uniqueImages = allImages.filter((image, index, array) => 
-              array.findIndex(img => img.id === image.id) === index
-            );
-            
-            setImages(uniqueImages);
-          } else {
-            toast.error(result.message || '加载图片列表失败');
-          }
+      params.set('page', String(page));
+      params.set('limit', String(limit));
+      if (searchTerm) params.set('search', searchTerm);
+      if (filterUsage !== 'all') params.set('usage', filterUsage);
+      if (onlyCurrentSection && sectionId) {
+        params.set('sectionId', sectionId);
+      }
+
+      const response = await fetch(`/api/images?${params.toString()}`);
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success) {
+          setImages(result.data.data || result.data || []);
+          const pg = result.data.pagination;
+          if (pg) setTotal(pg.total);
         } else {
-          toast.error('加载图片列表失败');
+          toast.error(result.message || '加载图片列表失败');
         }
       } else {
-        // 没有上下文时，使用普通图片列表API
-        params.append('contextOnly', 'false');
-        
-        const response = await fetch(`/api/images?${params}`);
-        if (response.ok) {
-          const result = await response.json();
-          if (result.success) {
-            setImages(result.data.data || []);
-          } else {
-            toast.error(result.message || '加载图片列表失败');
-          }
-        } else {
-          toast.error('加载图片列表失败');
-        }
+        toast.error('加载图片列表失败');
       }
     } catch (error) {
       toast.error('加载图片列表失败');
@@ -208,12 +184,28 @@ export default function ImageSelector({ onImageSelect, trigger, chapterId, secti
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  // 当对话框打开时加载图片
+  // 搜索与用途筛选变更时，回到第一页并刷新
   useEffect(() => {
-    if (isOpen) {
-      loadImages();
-    }
-  }, [isOpen]);
+    if (!isOpen) return;
+    setPage(1);
+    loadImages();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchTerm, filterUsage]);
+
+  // 切换“仅当前段落”时刷新
+  useEffect(() => {
+    if (!isOpen) return;
+    setPage(1);
+    loadImages();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onlyCurrentSection]);
+
+  // 分页变更
+  useEffect(() => {
+    if (!isOpen) return;
+    loadImages();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, limit]);
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -225,9 +217,9 @@ export default function ImageSelector({ onImageSelect, trigger, chapterId, secti
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden">
+      <DialogContent className="max-w-4xl h-[80vh] p-0">
         <DialogHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between px-6 pt-4">
             <DialogTitle>选择图片</DialogTitle>
             {(chapterId || sectionId) && (
               <div className="text-sm text-slate-600 bg-blue-50 px-2 py-1 rounded">
@@ -237,9 +229,9 @@ export default function ImageSelector({ onImageSelect, trigger, chapterId, secti
           </div>
         </DialogHeader>
         
-        <div className="flex flex-col h-full">
+        <div className="flex flex-col h-full min-h-0">
           {/* 操作栏 */}
-          <div className="flex flex-wrap items-center gap-4 mb-4">
+          <div className="flex flex-wrap items-center gap-4 px-6 pb-4">
             <Button onClick={handleImageUpload} disabled={uploading} size="sm">
               <Upload className="w-4 h-4 mr-2" />
               {uploading ? '上传中...' : '上传图片'}
@@ -270,24 +262,36 @@ export default function ImageSelector({ onImageSelect, trigger, chapterId, secti
                 </SelectContent>
               </Select>
             </div>
+
+            <label className="flex items-center gap-2 text-sm text-slate-700">
+              <input
+                type="checkbox"
+                checked={onlyCurrentSection}
+                onChange={(e) => setOnlyCurrentSection(e.target.checked)}
+                disabled={!sectionId}
+              />
+              仅当前段落
+            </label>
           </div>
 
           {/* 图片网格 */}
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 min-h-0 overflow-y-auto px-6 pb-4">
             {loading ? (
               <div className="text-center py-12">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
                 <p className="mt-2 text-slate-600">加载中...</p>
               </div>
             ) : (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                 {filteredImages.map((image) => (
                   <Card key={image.id} className="overflow-hidden cursor-pointer hover:shadow-lg transition-shadow">
                     <div className="relative group">
                       <img
                         src={image.fileUrl}
                         alt={image.altText || image.originalName}
-                        className="w-full h-32 object-cover"
+                        className="w-full h-28 object-cover"
+                        loading="lazy"
+                        decoding="async"
                         onClick={() => handleSelectImage(image)}
                       />
                       <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-200 flex items-center justify-center">
@@ -336,6 +340,24 @@ export default function ImageSelector({ onImageSelect, trigger, chapterId, secti
                 <p className="text-slate-600">暂无图片</p>
               </div>
             )}
+          </div>
+
+          {/* 分页控件 */}
+          <div className="flex items-center justify-between px-6 pb-4">
+            <div className="text-xs text-slate-600">共 {total} 条</div>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(page - 1)}>上一页</Button>
+              <div className="text-xs">第 {page} 页</div>
+              <Button variant="outline" size="sm" disabled={images.length < limit || page * limit >= total} onClick={() => setPage(page + 1)}>下一页</Button>
+              <Select value={String(limit)} onValueChange={(v) => { setLimit(Number(v)); setPage(1); }}>
+                <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="12">每页 12</SelectItem>
+                  <SelectItem value="20">每页 20</SelectItem>
+                  <SelectItem value="40">每页 40</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </div>
 

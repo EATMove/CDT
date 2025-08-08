@@ -359,7 +359,7 @@ export default function ContentEditPage() {
 
     // 验证文件大小 (5MB)
     if (file.size > 4 * 1024 * 1024) {
-      toast.error('图片大小不能超过5MB');
+      toast.error('图片大小不能超过4MB');
       return;
     }
 
@@ -891,6 +891,8 @@ export default function ContentEditPage() {
                       toast.success('图片已插入到编辑器');
                     }
                   }}
+                  chapterId={formData.chapterId}
+                  sectionId={formData.sectionId}
                   trigger={
                     <Button variant="outline" size="sm">
                       <Eye className="w-4 h-4 mr-1" />

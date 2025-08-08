@@ -15,15 +15,19 @@ import ContentPreview from '@/components/ContentPreview';
 import { HTML_TEST_CONTENT, SIMPLE_HTML_TEST } from '@/lib/html-test-content';
 
 // 动态导入Monaco Editor
-import dynamic from 'next/dynamic';
+import NextDynamic from 'next/dynamic';
 
-const MonacoEditor = dynamic(() => import('@monaco-editor/react'), {
+const MonacoEditor = NextDynamic(() => import('@monaco-editor/react'), {
   loading: () => <div className="h-full bg-slate-100 rounded-lg flex items-center justify-center">加载编辑器中...</div>,
   ssr: false
 });
 
 // 导入Tailwind CSS支持
 import { initTailwindSupport } from '@/lib/monaco-tailwind';
+
+// 强制动态渲染，避免构建期预渲染访问 window
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 // 类型定义
 interface ContentData {

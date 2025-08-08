@@ -238,6 +238,8 @@ export const CreateChapterSchema = z.object({
   paymentType: z.enum(['FREE', 'MEMBER_ONLY', 'TRIAL_INCLUDED', 'PREMIUM']).default('FREE'),
   freePreviewSections: z.number().int().min(0, '免费预览段落数不能小于0').default(0),
   prerequisiteChapters: z.array(z.string()).default([]),
+  // 增加发布状态到通用章节创建/更新校验
+  publishStatus: z.enum(['DRAFT', 'REVIEW', 'PUBLISHED', 'ARCHIVED']).default('DRAFT'),
 });
 
 export const CreateSectionSchema = z.object({

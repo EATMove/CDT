@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Search, Filter, Edit, Trash2, Eye, BookOpen, Calendar, User, ArrowLeft } from 'lucide-react';
+import { Plus, Search, Filter, Edit, Trash2, Eye, BookOpen, Calendar, User, ArrowLeft, Image as ImageIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import Link from 'next/link';
 
@@ -347,6 +347,7 @@ export default function ChaptersPage() {
 // 创建章节表单组件
 function CreateChapterForm({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
   const [formData, setFormData] = useState({
+    id: '',
     title: '',
     titleEn: '',
     description: '',
@@ -355,6 +356,8 @@ function CreateChapterForm({ onClose, onSuccess }: { onClose: () => void; onSucc
     province: 'ON' as 'AB' | 'BC' | 'ON',
     contentFormat: 'HTML' as 'HTML' | 'MARKDOWN' | 'PLAIN_TEXT',
     estimatedReadTime: 25,
+    coverImageUrl: '',
+    coverImageAlt: '',
     paymentType: 'FREE' as 'FREE' | 'MEMBER_ONLY' | 'TRIAL_INCLUDED' | 'PREMIUM',
     freePreviewSections: 3,
     publishStatus: 'DRAFT' as 'DRAFT' | 'REVIEW' | 'PUBLISHED' | 'ARCHIVED'
@@ -371,7 +374,15 @@ function CreateChapterForm({ onClose, onSuccess }: { onClose: () => void; onSucc
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          // 清理空串
+          id: formData.id.trim() || undefined,
+          coverImageUrl: formData.coverImageUrl.trim() || undefined,
+          coverImageAlt: formData.coverImageAlt.trim() || undefined,
+          titleEn: formData.titleEn.trim() || undefined,
+          descriptionEn: formData.descriptionEn.trim() || undefined,
+        }),
       });
 
       if (response.ok) {
@@ -401,6 +412,15 @@ function CreateChapterForm({ onClose, onSuccess }: { onClose: () => void; onSucc
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <Label htmlFor="id">章节ID（可选，留空自动生成）</Label>
+              <Input
+                id="id"
+                value={formData.id}
+                onChange={(e) => setFormData({ ...formData, id: e.target.value })}
+                placeholder="例如 ch-ab-001 或自定义 slug"
+              />
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="title">标题 *</Label>
@@ -419,6 +439,28 @@ function CreateChapterForm({ onClose, onSuccess }: { onClose: () => void; onSucc
                   value={formData.titleEn}
                   onChange={(e) => setFormData({ ...formData, titleEn: e.target.value })}
                   placeholder="Chapter Title"
+                />
+              </div>
+            </div>
+
+            {/* 封面图片 */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="coverImageUrl">封面图片URL</Label>
+                <Input
+                  id="coverImageUrl"
+                  value={formData.coverImageUrl}
+                  onChange={(e) => setFormData({ ...formData, coverImageUrl: e.target.value })}
+                  placeholder="https://..."
+                />
+              </div>
+              <div>
+                <Label htmlFor="coverImageAlt">封面图片Alt</Label>
+                <Input
+                  id="coverImageAlt"
+                  value={formData.coverImageAlt}
+                  onChange={(e) => setFormData({ ...formData, coverImageAlt: e.target.value })}
+                  placeholder="图片替代文本（用于无障碍/SEO）"
                 />
               </div>
             </div>

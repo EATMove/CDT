@@ -59,6 +59,17 @@ export function withErrorHandling(
     } catch (error) {
       console.error('API错误:', error);
       
+      // 识别 Zod 校验错误
+      if (typeof error === 'object' && error !== null && (error as any).name === 'ZodError') {
+        const issues = (error as any).issues?.map((i: any) => `${i.path?.join('.')}: ${i.message}`) || [];
+        return createErrorResponse(
+          ApiErrorCode.VALIDATION_ERROR,
+          issues.length ? `Validation failed: ${issues.join('; ')}` : 'Validation failed',
+          400,
+          issues
+        );
+      }
+
       // 如果是已知的业务错误
       if (error instanceof Error && error.message.includes('VALIDATION_ERROR')) {
         return createErrorResponse(

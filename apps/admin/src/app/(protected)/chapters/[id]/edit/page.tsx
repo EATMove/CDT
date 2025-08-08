@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Link from 'next/link';
+import ImageSelector from '@/components/ImageSelector';
 
 // 动态导入Monaco Editor
 import dynamic from 'next/dynamic';
@@ -134,8 +135,15 @@ export default function ChapterEditPage() {
       if (response.ok) {
         const result = await response.json();
         if (result.success) {
-          toast.success('章节信息保存成功');
-          loadChapterData();
+          const newId = result?.data?.id;
+          if (newId && newId !== chapterId) {
+            toast.success('章节ID更新成功');
+            // 跳转到新的ID页面
+            router.push(`/chapters/${newId}/edit`);
+          } else {
+            toast.success('章节信息保存成功');
+            loadChapterData();
+          }
         }
       }
     } catch (error) {
@@ -301,6 +309,15 @@ export default function ChapterEditPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
+                <Label htmlFor="id">章节ID（可修改）</Label>
+                <Input
+                  id="id"
+                  value={chapterData.id}
+                  onChange={(e) => setChapterData(prev => prev ? { ...prev, id: e.target.value } : null)}
+                  placeholder="例如 ch-ab-001 或自定义 slug"
+                />
+              </div>
+              <div>
                 <Label htmlFor="title">标题 *</Label>
                 <Input
                   id="title"
@@ -404,6 +421,39 @@ export default function ChapterEditPage() {
                     <SelectItem value="ARCHIVED">🗄️ 已归档</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+
+              {/* 封面图片 */}
+              <div className="grid grid-cols-1 gap-3">
+                <div>
+                  <Label htmlFor="coverImageUrl">封面图片URL</Label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      id="coverImageUrl"
+                      value={chapterData.coverImageUrl || ''}
+                      onChange={(e) => setChapterData(prev => prev ? { ...prev, coverImageUrl: e.target.value } : null)}
+                      placeholder="https://..."
+                    />
+                    <ImageSelector
+                      trigger={<Button variant="outline" size="sm">选择</Button>}
+                      chapterId={chapterId}
+                      defaultUsage="cover"
+                      onImageSelect={(img) => {
+                        setChapterData(prev => prev ? { ...prev, coverImageUrl: img.fileUrl, coverImageAlt: img.altText || img.originalName } : null);
+                        toast.success('已选择封面图片');
+                      }}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <Label htmlFor="coverImageAlt">封面图片Alt</Label>
+                  <Input
+                    id="coverImageAlt"
+                    value={chapterData.coverImageAlt || ''}
+                    onChange={(e) => setChapterData(prev => prev ? { ...prev, coverImageAlt: e.target.value } : null)}
+                    placeholder="图片替代文本（用于无障碍/SEO）"
+                  />
+                </div>
               </div>
             </CardContent>
           </Card>

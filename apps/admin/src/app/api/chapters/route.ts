@@ -13,7 +13,28 @@ export const POST = withErrorHandling(async (request: NextRequest) => {
   const validatedData = CreateChapterSchema.parse(data);
 
   const db = getDb();
-  const chapterId = generateId();
+  // 允许自定义章节ID；未提供则生成
+  let chapterId: string = generateId();
+  if (typeof data.id === 'string' && data.id.trim()) {
+    const candidate = data.id.trim();
+    // 允许格式：ch-xx-xxx 或 通用 slug(字母数字-_ 3-36)
+    const valid = /^ch-[a-z]{2}-\d{3}$/i.test(candidate) || /^[a-zA-Z0-9_-]{3,36}$/.test(candidate);
+    if (!valid) {
+      return createErrorResponse(
+        ApiErrorCode.VALIDATION_ERROR,
+        'Invalid chapter id format. Use ch-<province>-<nnn> or 3-36 chars [a-zA-Z0-9_-]'
+      );
+    }
+    // 唯一性检查
+    const dup = await db.select().from(handbookChapters).where(eq(handbookChapters.id, candidate)).limit(1);
+    if (dup.length) {
+      return createErrorResponse(
+        ApiErrorCode.VALIDATION_ERROR,
+        'Chapter ID already exists'
+      );
+    }
+    chapterId = candidate;
+  }
 
   // 创建新章节
   const newChapter = await db
@@ -33,7 +54,7 @@ export const POST = withErrorHandling(async (request: NextRequest) => {
       paymentType: validatedData.paymentType,
       freePreviewSections: validatedData.freePreviewSections,
       prerequisiteChapters: validatedData.prerequisiteChapters,
-      publishStatus: 'DRAFT',
+      publishStatus: validatedData.publishStatus ?? 'DRAFT',
       // authorId: user.id, // TODO: 从认证中获取
     })
     .returning();

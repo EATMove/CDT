@@ -11,9 +11,11 @@ import { Separator } from '@/components/ui/separator';
 import { Upload, Eye, Save, Copy, Code2, Plus, Edit, TestTube, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import ImageSelector from '@/components/ImageSelector';
+import ImagePicker from '@/components/ImagePicker';
 import ContentPreview from '@/components/ContentPreview';
 import { HTML_TEST_CONTENT } from '@/lib/html-test-content';
 import NextDynamic from 'next/dynamic';
+import Link from 'next/link';
 
 const MonacoEditor = NextDynamic(() => import('@monaco-editor/react'), {
   loading: () => <div className="h-full bg-slate-100 rounded-lg flex items-center justify-center">加载编辑器中...</div>,
@@ -66,7 +68,6 @@ export default function ContentEditPage() {
   const [isManualEstimated, setIsManualEstimated] = useState(false);
   const [stats, setStats] = useState<{ words: number; minutes: number }>({ words: 0, minutes: 0 });
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const editorRef = useRef<any>(null);
 
   const handleInputChange = (field: keyof ContentData, value: any) => {
@@ -287,62 +288,7 @@ export default function ContentEditPage() {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [handleKeyDown]);
 
-  const handleImageUpload = useCallback(async () => {
-    fileInputRef.current?.click();
-  }, []);
-
-  const handleFileSelect = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
-    if (!allowedTypes.includes(file.type)) {
-      toast.error('不支持的文件格式，请上传 JPG、PNG、WebP 或 GIF 图片');
-      return;
-    }
-    if (file.size > 4 * 1024 * 1024) {
-      toast.error('图片大小不能超过4MB');
-      return;
-    }
-    setUploading(true);
-    try {
-      const chapterId = searchParams.get('chapterId');
-      const sectionId = searchParams.get('sectionId');
-      const uploadFormData = new FormData();
-      uploadFormData.append('file', file);
-      uploadFormData.append('altText', file.name);
-      if (sectionId) {
-        uploadFormData.append('sectionId', sectionId);
-        uploadFormData.append('usage', 'content');
-      } else if (chapterId) {
-        uploadFormData.append('chapterId', chapterId);
-        uploadFormData.append('usage', 'content');
-      }
-      const response = await fetch('/api/images/upload', { method: 'POST', body: uploadFormData });
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error?.message || errorData.message || '上传失败');
-      }
-      const result = await response.json();
-      const uploadResult = result.data;
-      if (editorRef.current) {
-        const editor = editorRef.current;
-        const selection = editor.getSelection();
-        const imageHtml = `<img src="${uploadResult.url}" alt="${uploadResult.originalName}" style="max-width: 100%; height: auto; border-radius: 8px; margin: 16px 0;" />`;
-        editor.executeEdits('insert-image', [{ range: selection, text: '\n' + imageHtml + '\n' }]);
-        const newContent = editor.getValue();
-        handleInputChange('content', newContent);
-      }
-      toast.success('图片上传成功！');
-    } catch (error) {
-      console.error('图片上传失败:', error);
-      toast.error(error instanceof Error ? error.message : '图片上传失败，请重试');
-    } finally {
-      setUploading(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
-    }
-  }, []);
+  // 通过 ImageSelector 统一上传/选择并插入，无需本地 file input
 
   const insertTemplate = useCallback((template: string) => {
     if (editorRef.current) {
@@ -613,26 +559,22 @@ export default function ContentEditPage() {
           <CardContent className="flex-1 p-0 flex flex-col overflow-hidden">
             <div className="flex items-center justify-between p-3 border-b bg-gray-50">
               <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" onClick={handleImageUpload} disabled={uploading}>
-                  <Upload className="w-4 h-4 mr-1" /> {uploading ? '上传中...' : '上传图片'}
-                </Button>
-                <ImageSelector
-                  onImageSelect={(image) => {
-                    if (editorRef.current) {
-                      const editor = editorRef.current;
-                      const selection = editor.getSelection();
-                      const imageHtml = `<img src="${image.fileUrl}" alt="${image.altText || image.originalName}" class="max-w-full h-auto rounded-lg my-4" />`;
-                      editor.executeEdits('insert-image', [{ range: selection, text: '\n' + imageHtml + '\n' }]);
-                      const newContent = editor.getValue();
-                      handleInputChange('content', newContent);
-                      toast.success('图片已插入到编辑器');
-                    }
-                  }}
+                <ImagePicker
                   chapterId={formData.chapterId}
                   sectionId={formData.sectionId}
+                  onPick={(image) => {
+                    if (!editorRef.current) return;
+                    const editor = editorRef.current;
+                    const selection = editor.getSelection();
+                    const imageHtml = `<img src="${image.fileUrl}" alt="${image.altText || image.originalName}" class="max-w-full h-auto rounded-lg my-4" />`;
+                    editor.executeEdits('insert-image', [{ range: selection, text: '\n' + imageHtml + '\n' }]);
+                    const newContent = editor.getValue();
+                    handleInputChange('content', newContent);
+                    toast.success('图片已插入到编辑器');
+                  }}
                   trigger={
                     <Button variant="outline" size="sm">
-                      <Eye className="w-4 h-4 mr-1" /> 选择图片
+                      <Upload className="w-4 h-4 mr-1" /> 插入图片
                     </Button>
                   }
                 />
@@ -694,8 +636,6 @@ export default function ContentEditPage() {
           <ContentPreview content={formData.content || ''} device={previewDevice} onDeviceChange={setPreviewDevice} />
         </div>
       </div>
-
-      <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleFileSelect} />
     </div>
   );
 }

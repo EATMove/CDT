@@ -8,13 +8,15 @@ import { eq } from 'drizzle-orm';
 
 export const POST = withErrorHandling(async (request: NextRequest) => {
   const formData = await request.formData();
-  const file = formData.get('file') as File;
-  const chapterId = formData.get('chapterId') as string;
-  const sectionId = formData.get('sectionId') as string;
-  const altText = formData.get('altText') as string;
-  const caption = formData.get('caption') as string;
-  const captionEn = formData.get('captionEn') as string;
-  const usage = (formData.get('usage') as string) || 'content';
+  const fd: any = formData as any;
+  const file = fd.get('file') as File;
+  const chapterId = (fd.get('chapterId') as string) || '';
+  const sectionId = (fd.get('sectionId') as string) || '';
+  const altText = (fd.get('altText') as string) || '';
+  const caption = (fd.get('caption') as string) || '';
+  const captionEn = (fd.get('captionEn') as string) || '';
+  const usage = (fd.get('usage') as string) || 'content';
+  const explicitId = (fd.get('id') as string) || '';
 
   if (!file) {
     return createErrorResponse(
@@ -49,18 +51,58 @@ export const POST = withErrorHandling(async (request: NextRequest) => {
   // 注意：这需要临时移除数据库约束或者提供默认值
 
   try {
-    // 生成唯一文件名
+    const db = getDb();
+
+    // 计算默认ID
+    let imageId: string;
+    if (explicitId && explicitId.trim()) {
+      const candidate = explicitId.trim();
+      const valid = /^img-[a-z0-9_-]{3,64}$/i.test(candidate);
+      if (!valid) {
+        return createErrorResponse(
+          ApiErrorCode.VALIDATION_ERROR,
+          'Invalid image id format. Expect: img-<slug> (3-64 chars [a-zA-Z0-9_-])',
+          400
+        );
+      }
+      const dup = await db
+        .select()
+        .from(handbookImages)
+        .where(eq(handbookImages.id, candidate))
+        .limit(1);
+      if (dup.length) {
+        return createErrorResponse(
+          ApiErrorCode.VALIDATION_ERROR,
+          'Image ID already exists',
+          400
+        );
+      }
+      imageId = candidate;
+    } else {
+      let existingImages: any[] = [];
+      if (sectionId) {
+        existingImages = await db
+          .select({ id: handbookImages.id })
+          .from(handbookImages)
+          .where(eq(handbookImages.sectionId, sectionId));
+      } else if (chapterId) {
+        existingImages = await db
+          .select({ id: handbookImages.id })
+          .from(handbookImages)
+          .where(eq(handbookImages.chapterId, chapterId));
+      }
+      const seq = (existingImages.length + 1).toString().padStart(3, '0');
+      const base = (sectionId || chapterId || 'global').replace(/[^a-z0-9_-]+/gi, '-');
+      imageId = `img-${base}-${seq}`;
+    }
+
+    // 生成文件名并上传
     const fileExtension = file.name.split('.').pop();
-    const fileName = `handbook/${generateId()}.${fileExtension}`;
-    
-    // 上传到 Vercel Blob
+    const fileName = `handbook/${imageId}.${fileExtension}`;
     const blob = await put(fileName, file, {
       access: 'public',
       addRandomSuffix: false,
     });
-
-    const db = getDb();
-    const imageId = generateId();
 
          // 获取当前关联的图片数量，用于设置order
      let existingImages: any[] = [];

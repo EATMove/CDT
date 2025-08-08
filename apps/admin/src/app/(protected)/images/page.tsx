@@ -2,13 +2,13 @@
 
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Upload, Search, Filter, Trash2, Copy } from 'lucide-react';
+import { Search, Filter, Trash2, Copy } from 'lucide-react';
 import { toast } from 'sonner';
+import Link from 'next/link';
 
 interface ImageData {
   id: string;
@@ -33,7 +33,6 @@ interface ImageData {
 export default function ImagesPage() {
   const [images, setImages] = useState<ImageData[]>([]);
   const [loading, setLoading] = useState(true);
-  const [uploading, setUploading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterUsage, setFilterUsage] = useState<string>('all');
   const [filterSectionId, setFilterSectionId] = useState('');
@@ -41,8 +40,6 @@ export default function ImagesPage() {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
   const [total, setTotal] = useState(0);
-
-  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   // 加载图片列表
   useEffect(() => {
@@ -83,57 +80,6 @@ export default function ImagesPage() {
     }
   };
 
-  // 图片上传处理
-  const handleImageUpload = () => {
-    fileInputRef.current?.click();
-  };
-
-  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
-    if (!files || files.length === 0) return;
-
-    setUploading(true);
-    const uploadPromises = Array.from(files).map(async (file) => {
-      try {
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('alt', file.name);
-
-        const response = await fetch('/api/images/upload', {
-          method: 'POST',
-          body: formData,
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.message || '上传失败');
-        }
-
-        const result = await response.json();
-        return result.data;
-      } catch (error) {
-        console.error('上传失败:', error);
-        toast.error(`${file.name} 上传失败`);
-        return null;
-      }
-    });
-
-    try {
-      const results = await Promise.all(uploadPromises);
-      const successfulUploads = results.filter(result => result !== null);
-      
-      if (successfulUploads.length > 0) {
-        toast.success(`成功上传 ${successfulUploads.length} 张图片`);
-        loadImages(); // 重新加载图片列表
-      }
-    } finally {
-      setUploading(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
-    }
-  };
-
   // 删除图片
   const handleDeleteImage = async (imageId: string) => {
     if (!confirm('确定要删除这张图片吗？')) return;
@@ -169,7 +115,7 @@ export default function ImagesPage() {
     if (!confirm(`确定要删除选中的 ${selectedImages.length} 张图片吗？`)) return;
 
     try {
-      const response = await fetch('/api/images/batch-delete', {
+      const response = await fetch('/api/images', {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
@@ -222,17 +168,18 @@ export default function ImagesPage() {
       {/* 页面标题 */}
       <div className="mb-6">
         <h1 className="text-3xl font-bold">图片管理</h1>
-        <p className="text-slate-600 mt-2">管理应用中的所有图片资源</p>
+        <p className="text-slate-600 mt-2">浏览、搜索、筛选与删除图片资源。上传流程已独立，请前往上传页。</p>
       </div>
 
       {/* 操作栏 */}
       <Card className="mb-6">
         <CardContent className="p-4">
           <div className="flex flex-wrap items-center gap-4">
-            <Button onClick={handleImageUpload} disabled={uploading}>
-              <Upload className="w-4 h-4 mr-2" />
-              {uploading ? '上传中...' : '上传图片'}
-            </Button>
+            <Link href="/images/upload" className="inline-flex">
+              <Button>
+                前往上传
+              </Button>
+            </Link>
 
             <div className="flex items-center gap-2">
               <Search className="w-4 h-4 text-slate-500" />
@@ -276,6 +223,8 @@ export default function ImagesPage() {
               </Button>
             )}
           </div>
+
+          {/* 上传已拆分至独立页面 */}
         </CardContent>
       </Card>
 
@@ -364,15 +313,7 @@ export default function ImagesPage() {
         </div>
       </div>
 
-      {/* 隐藏的文件输入 */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        multiple
-        style={{ display: 'none' }}
-        onChange={handleFileSelect}
-      />
+      {/* 上传入口已迁移到 /images/upload */}
     </div>
   );
 } 

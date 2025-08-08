@@ -2,13 +2,13 @@
 
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Upload, Search, Copy, Eye, X } from 'lucide-react';
+import { Search, Copy, Eye } from 'lucide-react';
 import { toast } from 'sonner';
+import Link from 'next/link';
 
 interface ImageData {
   id: string;
@@ -41,7 +41,6 @@ interface ImageSelectorProps {
 export default function ImageSelector({ onImageSelect, trigger, chapterId, sectionId, defaultUsage }: ImageSelectorProps) {
   const [images, setImages] = useState<ImageData[]>([]);
   const [loading, setLoading] = useState(false);
-  const [uploading, setUploading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterUsage, setFilterUsage] = useState<string>(defaultUsage || 'all');
   const [isOpen, setIsOpen] = useState(false);
@@ -50,7 +49,6 @@ export default function ImageSelector({ onImageSelect, trigger, chapterId, secti
   const [total, setTotal] = useState(0);
   const [onlyCurrentSection, setOnlyCurrentSection] = useState<boolean>(Boolean(sectionId));
   
-  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   // 当上下文变化时重新加载图片
   useEffect(() => {
@@ -92,66 +90,6 @@ export default function ImageSelector({ onImageSelect, trigger, chapterId, secti
       toast.error('加载图片列表失败');
     } finally {
       setLoading(false);
-    }
-  };
-
-  // 图片上传处理
-  const handleImageUpload = () => {
-    fileInputRef.current?.click();
-  };
-
-  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
-    if (!files || files.length === 0) return;
-
-    setUploading(true);
-    const uploadPromises = Array.from(files).map(async (file) => {
-      try {
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('altText', file.name);
-        
-        // 添加上下文关联信息
-        if (sectionId) {
-          formData.append('sectionId', sectionId);
-          formData.append('usage', defaultUsage || 'content');
-        } else if (chapterId) {
-          formData.append('chapterId', chapterId);
-          formData.append('usage', defaultUsage || 'content');
-        }
-
-        const response = await fetch('/api/images/upload', {
-          method: 'POST',
-          body: formData,
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.message || '上传失败');
-        }
-
-        const result = await response.json();
-        return result.data;
-      } catch (error) {
-        console.error('上传失败:', error);
-        toast.error(`${file.name} 上传失败`);
-        return null;
-      }
-    });
-
-    try {
-      const results = await Promise.all(uploadPromises);
-      const successfulUploads = results.filter(result => result !== null);
-      
-      if (successfulUploads.length > 0) {
-        toast.success(`成功上传 ${successfulUploads.length} 张图片`);
-        loadImages(); // 重新加载图片列表
-      }
-    } finally {
-      setUploading(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
     }
   };
 
@@ -232,10 +170,9 @@ export default function ImageSelector({ onImageSelect, trigger, chapterId, secti
         <div className="flex flex-col h-full min-h-0">
           {/* 操作栏 */}
           <div className="flex flex-wrap items-center gap-4 px-6 pb-4">
-            <Button onClick={handleImageUpload} disabled={uploading} size="sm">
-              <Upload className="w-4 h-4 mr-2" />
-              {uploading ? '上传中...' : '上传图片'}
-            </Button>
+            <Link href={`/images/upload${(chapterId || sectionId) ? `?${new URLSearchParams({ ...(chapterId ? { chapterId } : {}), ...(sectionId ? { sectionId } : {}) }).toString()}` : ''}` } className="inline-flex">
+              <Button size="sm" variant="outline">上传新图片</Button>
+            </Link>
 
             <div className="flex items-center gap-2">
               <Search className="w-4 h-4 text-slate-500" />
@@ -273,74 +210,55 @@ export default function ImageSelector({ onImageSelect, trigger, chapterId, secti
               仅当前段落
             </label>
           </div>
-
-          {/* 图片网格 */}
           <div className="flex-1 min-h-0 overflow-y-auto px-6 pb-4">
-            {loading ? (
-              <div className="text-center py-12">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-                <p className="mt-2 text-slate-600">加载中...</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                {filteredImages.map((image) => (
-                  <Card key={image.id} className="overflow-hidden cursor-pointer hover:shadow-lg transition-shadow">
-                    <div className="relative group">
-                      <img
-                        src={image.fileUrl}
-                        alt={image.altText || image.originalName}
-                        className="w-full h-28 object-cover"
-                        loading="lazy"
-                        decoding="async"
-                        onClick={() => handleSelectImage(image)}
-                      />
-                      <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-200 flex items-center justify-center">
-                        <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex gap-1">
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleCopyUrl(image.fileUrl);
-                            }}
-                          >
-                            <Copy className="w-3 h-3" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleSelectImage(image);
-                            }}
-                          >
-                            <Eye className="w-3 h-3" />
-                          </Button>
+              {loading ? (
+                <div className="text-center py-12">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                  <p className="mt-2 text-slate-600">加载中...</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                  {filteredImages.map((image) => (
+                    <Card key={image.id} className="overflow-hidden cursor-pointer hover:shadow-lg transition-shadow">
+                      <div className="relative group">
+                        <img
+                          src={image.fileUrl}
+                          alt={image.altText || image.originalName}
+                          className="w-full h-28 object-cover"
+                          loading="lazy"
+                          decoding="async"
+                          onClick={() => handleSelectImage(image)}
+                        />
+                        <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-200 flex items-center justify-center">
+                          <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex gap-1">
+                            <Button size="sm" variant="secondary" onClick={(e) => { e.stopPropagation(); handleCopyUrl(image.fileUrl); }}>
+                              <Copy className="w-3 h-3" />
+                            </Button>
+                            <Button size="sm" variant="secondary" onClick={(e) => { e.stopPropagation(); handleSelectImage(image); }}>
+                              <Eye className="w-3 h-3" />
+                            </Button>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                    <CardContent className="p-3">
-                      <div className="space-y-1">
-                        <h3 className="font-medium text-xs truncate" title={image.originalName}>
-                          {image.originalName}
-                        </h3>
-                        <div className="text-xs text-slate-500">
-                          <p>{formatFileSize(image.fileSize)}</p>
-                          <p>{image.width} × {image.height}</p>
+                      <CardContent className="p-3">
+                        <div className="space-y-1">
+                          <h3 className="font-medium text-xs truncate" title={image.originalName}>{image.originalName}</h3>
+                          <div className="text-xs text-slate-500">
+                            <p>{formatFileSize(image.fileSize)}</p>
+                            <p>{image.width} × {image.height}</p>
+                          </div>
                         </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
-
-            {!loading && filteredImages.length === 0 && (
-              <div className="text-center py-12">
-                <p className="text-slate-600">暂无图片</p>
-              </div>
-            )}
-          </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+              {!loading && filteredImages.length === 0 && (
+                <div className="text-center py-12">
+                  <p className="text-slate-600">暂无图片</p>
+                </div>
+              )}
+            </div>
 
           {/* 分页控件 */}
           <div className="flex items-center justify-between px-6 pb-4">
@@ -360,16 +278,6 @@ export default function ImageSelector({ onImageSelect, trigger, chapterId, secti
             </div>
           </div>
         </div>
-
-        {/* 隐藏的文件输入 */}
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          multiple
-          style={{ display: 'none' }}
-          onChange={handleFileSelect}
-        />
       </DialogContent>
     </Dialog>
   );
